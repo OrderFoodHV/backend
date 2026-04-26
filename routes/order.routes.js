@@ -8,4 +8,5 @@ router.post("/create", verifyToken, order.createOrder);
 router.get("/history", verifyToken, order.getUserOrders); // Đổi thành /history cho chuẩn RESTful
 router.put("/update-status/:order_id", verifyToken, order.updateOrderStatus);
 router.get("/:id", verifyToken, order.getOrderDetail);
+router.get("/:id/tracking", verifyToken, order.getTracking);
 module.exports = router;

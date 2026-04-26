@@ -21,6 +21,8 @@ const cartRoutes = require("./routes/cart.routes");
 app.use("/carts", cartRoutes);
 const orderRoutes = require("./routes/order.routes");
 app.use("/orders", orderRoutes);
+const paymentRoutes = require("./routes/payment.routes");
+app.use("/payments", paymentRoutes);
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });

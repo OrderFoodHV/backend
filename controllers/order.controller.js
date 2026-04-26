@@ -54,6 +54,14 @@ exports.createOrder = (req, res) => {
 
         db.query(copyItemsSql, [newOrderId, cartId], (err) => {
           if (err) return res.status(500).json(err);
+          // 🔥 thêm tracking đầu tiên
+          db.query(
+            "INSERT INTO order_tracking (order_id, status) VALUES (?, ?)",
+            [newOrderId, "pending"],
+            (err) => {
+              if (err) console.error("Tracking error:", err);
+            },
+          );
 
           // Bước 4: Xóa sạch giỏ hàng
           db.query(
@@ -65,6 +73,7 @@ exports.createOrder = (req, res) => {
                 message: "Đặt hàng thành công!",
                 order_id: newOrderId,
                 total_paid: realTotal,
+                status: "pending",
               });
             },
           );
@@ -93,11 +102,34 @@ exports.updateOrderStatus = (req, res) => {
   const { order_id } = req.params;
   const { status } = req.body;
 
+  const validStatus = [
+    "pending",
+    "confirmed",
+    "delivering",
+    "completed",
+    "cancelled",
+  ];
+
+  if (!validStatus.includes(status)) {
+    return res.status(400).json({ message: "Trạng thái không hợp lệ" });
+  }
   db.query(
     "UPDATE orders SET status = ? WHERE id = ?",
     [status, order_id],
     (err, result) => {
       if (err) return res.status(500).json(err);
+
+      // 🔥 CHECK: order có tồn tại không
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Order không tồn tại" });
+      }
+
+      // 🔥 thêm tracking mỗi lần update
+      db.query("INSERT INTO order_tracking (order_id, status) VALUES (?, ?)", [
+        order_id,
+        status,
+      ]);
+
       res.json({ message: `Đã cập nhật trạng thái đơn hàng thành: ${status}` });
     },
   );
@@ -108,7 +140,7 @@ exports.getOrderDetail = (req, res) => {
   const { id } = req.params;
 
   const sql = `
-    SELECT o.id, o.total_price, o.address, o.order_status, o.payment_status,
+    SELECT o.id, o.total_price, o.address, o.status, o.payment_status,
            oi.product_id, oi.quantity, oi.price,
            p.name, p.image
     FROM orders o
@@ -123,5 +155,23 @@ exports.getOrderDetail = (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
     }
     res.json(data);
+  });
+};
+// 5. Tracking đơn hàng
+exports.getTracking = (req, res) => {
+  const user_id = req.user.id;
+  const { id } = req.params;
+
+  const sql = `
+    SELECT ot.*
+    FROM order_tracking ot
+    JOIN orders o ON ot.order_id = o.id
+    WHERE o.id = ? AND o.user_id = ?
+    ORDER BY ot.created_at ASC
+  `;
+
+  db.query(sql, [id, user_id], (err, result) => {
+    if (err) return res.status(500).json(err);
+    res.json(result);
   });
 };
