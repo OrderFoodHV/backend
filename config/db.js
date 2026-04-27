@@ -3,7 +3,7 @@ const mysql = require("mysql2");
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "", // nếu có thì điền
+  password: "1234",
   database: "food_app",
 });
 
