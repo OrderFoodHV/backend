@@ -23,6 +23,7 @@ const orderRoutes = require("./routes/order.routes");
 app.use("/orders", orderRoutes);
 const paymentRoutes = require("./routes/payment.routes");
 app.use("/payments", paymentRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });

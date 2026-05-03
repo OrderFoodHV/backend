@@ -2,7 +2,7 @@ const db = require("../config/db");
 
 // 1. Thêm sản phẩm vào giỏ hàng
 exports.addToCart = (req, res) => {
-  const user_id = req.user.id;
+  const user_id = 1;
   const { product_id, quantity } = req.body;
 
   // Validate input
@@ -80,7 +80,7 @@ const insertOrUpdateItem = (cartId, productId, quantity, res) => {
 
 // 2. Cập nhật số lượng sản phẩm
 exports.updateCartItem = (req, res) => {
-  const user_id = req.user.id;
+  const user_id = 1;
   const { product_id, quantity } = req.body;
 
   db.query(
@@ -127,7 +127,7 @@ exports.updateCartItem = (req, res) => {
 
 // 3. Xóa sản phẩm khỏi giỏ
 exports.removeFromCart = (req, res) => {
-  const user_id = req.user.id;
+  const user_id = 1;
   const { product_id } = req.body;
 
   db.query(
@@ -157,7 +157,7 @@ exports.removeFromCart = (req, res) => {
 
 // 4. Lấy giỏ hàng
 exports.getCart = (req, res) => {
-  const user_id = req.user.id;
+  const user_id = 1;
 
   const sql = `
     SELECT 

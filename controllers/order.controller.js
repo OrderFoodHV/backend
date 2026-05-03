@@ -98,37 +98,25 @@ exports.getUserOrders = (req, res) => {
 };
 
 // 3. Cập nhật trạng thái đơn hàng
+// Trong hàm updateOrderStatus
 exports.updateOrderStatus = (req, res) => {
   const { order_id } = req.params;
-  const { status } = req.body;
+  const { status, latitude, longitude, note } = req.body; // Nhận thêm tọa độ từ shipper
 
-  const validStatus = [
-    "pending",
-    "confirmed",
-    "delivering",
-    "completed",
-    "cancelled",
-  ];
-
-  if (!validStatus.includes(status)) {
-    return res.status(400).json({ message: "Trạng thái không hợp lệ" });
-  }
   db.query(
     "UPDATE orders SET status = ? WHERE id = ?",
     [status, order_id],
     (err, result) => {
       if (err) return res.status(500).json(err);
 
-      // 🔥 CHECK: order có tồn tại không
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Order không tồn tại" });
-      }
-
-      // 🔥 thêm tracking mỗi lần update
-      db.query("INSERT INTO order_tracking (order_id, status) VALUES (?, ?)", [
-        order_id,
-        status,
-      ]);
+      // 🔥 Chèn tracking chi tiết để FE nhét vào SQLite
+      db.query(
+        "INSERT INTO order_tracking (order_id, status, latitude, longitude, note) VALUES (?, ?, ?, ?, ?)",
+        [order_id, status, latitude, longitude, note],
+        (err) => {
+          if (err) console.error("Tracking error:", err);
+        },
+      );
 
       res.json({ message: `Đã cập nhật trạng thái đơn hàng thành: ${status}` });
     },
