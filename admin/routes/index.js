@@ -1,13 +1,17 @@
 const router = require("express").Router();
+const { verifyToken, verifyAdmin } = require("../../middlewares/auth.middleware");
 
-const partnerRoutes = require("./partner.routes");
+const partnerRoutes       = require("./partner.routes");
 const accountStatusRoutes = require("./accountStatus.routes");
-const categoryRoutes = require("./category.routes");
-const feeRoutes = require("./fee.routes");
-const disputeRoutes = require("./dispute.routes");
+const categoryRoutes      = require("./category.routes");
+const feeRoutes           = require("./fee.routes");
+const disputeRoutes       = require("./dispute.routes");
 const systemVoucherRoutes = require("./systemVoucher.routes");
 
-// Gộp tất cả routes admin
+// Tất cả API admin đều phải qua xác thực token + quyền admin
+router.use(verifyToken);
+router.use(verifyAdmin);
+
 router.use("/", partnerRoutes);
 router.use("/", accountStatusRoutes);
 router.use("/", categoryRoutes);

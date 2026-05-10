@@ -38,8 +38,15 @@ exports.updateRootCategory = async (req, res, next) => {
 exports.deleteRootCategory = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Kiểm tra danh mục con
     const [children] = await db.query("SELECT COUNT(*) as count FROM categories WHERE parent_id = ?", [id]);
-    if (children[0].count > 0) return fail(res, 400, "Không thể xóa danh mục có danh mục con");
+    if (children[0].count > 0) return fail(res, 400, "Không thể xóa danh mục đang có danh mục con");
+
+    // Kiểm tra sản phẩm đang dùng danh mục này
+    const [products] = await db.query("SELECT COUNT(*) as count FROM products WHERE category_id = ?", [id]);
+    if (products[0].count > 0) return fail(res, 400, `Không thể xóa danh mục đang có ${products[0].count} sản phẩm. Hãy chuyển sản phẩm sang danh mục khác trước.`);
+
     const [result] = await db.query("DELETE FROM categories WHERE id = ?", [id]);
     if (result.affectedRows === 0) return fail(res, 404, "Không tìm thấy danh mục");
     return success(res, "Xóa danh mục gốc thành công");
