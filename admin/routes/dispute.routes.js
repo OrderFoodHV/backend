@@ -1,9 +1,7 @@
 const router = require("express").Router();
 const dispute = require("../controllers/dispute.controller");
-const verifyAdmin = require("../middlewares/admin.middleware");
 
-// Tất cả routes đều cần xác thực admin
-router.use(verifyAdmin);
+// Bảo vệ đã được áp dụng ở admin/routes/index.js
 
 // Giải quyết tranh chấp/Hoàn tiền
 router.get("/disputes", dispute.getDisputes);

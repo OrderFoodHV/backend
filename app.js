@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -43,8 +44,11 @@ app.use("/api/reorder", reorderRoutes);
 const adminRoutes = require("./admin/routes");
 app.use("/api/admin", adminRoutes);
 
+// Serve admin-web tại /admin
+app.use("/admin", express.static(path.join(__dirname, "../admin-web")));
+
 app.get("/", (req, res) => {
-  res.send("API is running 🚀");
+  res.send("API is running 🚀 | Admin: http://localhost:3000/admin");
 });
 
 // Middleware xử lý lỗi tập trung — phải đặt SAU tất cả routes

@@ -1,9 +1,7 @@
 const router = require("express").Router();
 const accountStatus = require("../controllers/accountStatus.controller");
-const verifyAdmin = require("../middlewares/admin.middleware");
 
-// Tất cả routes đều cần xác thực admin
-router.use(verifyAdmin);
+// Bảo vệ đã được áp dụng ở admin/routes/index.js
 
 // Quản lý trạng thái tài khoản
 router.get("/accounts", accountStatus.getAccounts);

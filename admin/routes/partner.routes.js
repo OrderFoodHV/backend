@@ -1,9 +1,7 @@
 const router = require("express").Router();
 const partner = require("../controllers/partner.controller");
-const verifyAdmin = require("../middlewares/admin.middleware");
 
-// Tất cả routes đều cần xác thực admin
-router.use(verifyAdmin);
+// Bảo vệ đã được áp dụng ở admin/routes/index.js
 
 // Quản lý đối tác
 router.get("/partners", partner.getPartners);
