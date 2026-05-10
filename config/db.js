@@ -1,18 +1,24 @@
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise");
+require("dotenv").config();
 
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "1234",
-  database: "food_app",
+const db = mysql.createPool({
+  host:     process.env.DB_HOST || "localhost",
+  user:     process.env.DB_USER || "root",
+  password: process.env.DB_PASS || "1234",
+  database: process.env.DB_NAME || "food_app",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error("❌ DB connection failed:", err);
-    return;
-  }
-  console.log("✅ Connected to MySQL");
-});
+// Kiểm tra kết nối khi khởi động
+db.getConnection()
+  .then((conn) => {
+    console.log("✅ Connected to MySQL");
+    conn.release();
+  })
+  .catch((err) => {
+    console.error("❌ DB connection failed:", err.message);
+  });
 
 module.exports = db;
