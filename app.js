@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
 
@@ -45,6 +46,9 @@ app.use("/api/admin", adminRoutes);
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
+
+// Middleware xử lý lỗi tập trung — phải đặt SAU tất cả routes
+app.use(errorHandler);
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");
