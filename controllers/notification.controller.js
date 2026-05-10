@@ -1,85 +1,57 @@
 const db = require("../config/db");
+const { ok, created, success, fail } = require("../utils/response");
 
-// Lấy tất cả thông báo của user
-exports.getAll = (req, res) => {
-  const userId = req.params.userId;
-  
-  db.query(
-    "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
-    [userId],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(data);
-    }
-  );
+exports.getAll = async (req, res, next) => {
+  try {
+    const [data] = await db.query("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC", [req.user.id]);
+    return ok(res, data);
+  } catch (err) { next(err); }
 };
 
-// Lấy thông báo chưa đọc
-exports.getUnread = (req, res) => {
-  const userId = req.params.userId;
-  
-  db.query(
-    "SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC",
-    [userId],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(data);
-    }
-  );
+exports.getUnread = async (req, res, next) => {
+  try {
+    const [data] = await db.query("SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC", [req.user.id]);
+    return ok(res, data);
+  } catch (err) { next(err); }
 };
 
-// Tạo thông báo mới
-exports.create = (req, res) => {
-  const { user_id, title, message, type } = req.body;
-  
-  db.query(
-    "INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)",
-    [user_id, title, message, type || "general"],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Tạo thông báo thành công", id: result.insertId });
-    }
-  );
+exports.create = async (req, res, next) => {
+  try {
+    const { user_id, title, message, type } = req.body;
+    if (!user_id || !title || !message) return fail(res, 400, "Thiếu thông tin bắt buộc (user_id, title, message)");
+    const [result] = await db.query(
+      "INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)",
+      [user_id, title, message, type || "general"]
+    );
+    return created(res, { id: result.insertId }, "Tạo thông báo thành công");
+  } catch (err) { next(err); }
 };
 
-// Đánh dấu đã đọc
-exports.markAsRead = (req, res) => {
-  const { notificationId } = req.params;
-  
-  db.query(
-    "UPDATE notifications SET is_read = 1 WHERE id = ?",
-    [notificationId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Đánh dấu đã đọc" });
-    }
-  );
+exports.markAsRead = async (req, res, next) => {
+  try {
+    const [result] = await db.query(
+      "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+      [req.params.notificationId, req.user.id]
+    );
+    if (result.affectedRows === 0) return fail(res, 404, "Không tìm thấy thông báo");
+    return success(res, "Đánh dấu đã đọc thành công");
+  } catch (err) { next(err); }
 };
 
-// Đánh dấu tất cả đã đọc
-exports.markAllAsRead = (req, res) => {
-  const { userId } = req.params;
-  
-  db.query(
-    "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
-    [userId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Đánh dấu tất cả đã đọc" });
-    }
-  );
+exports.markAllAsRead = async (req, res, next) => {
+  try {
+    await db.query("UPDATE notifications SET is_read = 1 WHERE user_id = ?", [req.user.id]);
+    return success(res, "Đánh dấu tất cả đã đọc thành công");
+  } catch (err) { next(err); }
 };
 
-// Xóa thông báo
-exports.delete = (req, res) => {
-  const { notificationId } = req.params;
-  
-  db.query(
-    "DELETE FROM notifications WHERE id = ?",
-    [notificationId],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Xóa thông báo thành công" });
-    }
-  );
+exports.delete = async (req, res, next) => {
+  try {
+    const [result] = await db.query(
+      "DELETE FROM notifications WHERE id = ? AND user_id = ?",
+      [req.params.notificationId, req.user.id]
+    );
+    if (result.affectedRows === 0) return fail(res, 404, "Không tìm thấy thông báo");
+    return success(res, "Xóa thông báo thành công");
+  } catch (err) { next(err); }
 };

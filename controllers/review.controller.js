@@ -1,115 +1,77 @@
 const db = require("../config/db");
+const { ok, created, success, fail } = require("../utils/response");
 
-// Lấy tất cả đánh giá của một sản phẩm
-exports.getByProduct = (req, res) => {
-  const productId = req.params.productId;
-  db.query(
-    `SELECT r.*, u.name as user_name, u.avatar as user_avatar 
-     FROM reviews r 
-     JOIN users u ON r.user_id = u.id 
-     WHERE r.product_id = ? 
-     ORDER BY r.created_at DESC`,
-    [productId],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(data);
-    }
-  );
+exports.getByProduct = async (req, res, next) => {
+  try {
+    const [data] = await db.query(
+      `SELECT r.*, u.name as user_name, u.avatar as user_avatar FROM reviews r 
+       JOIN users u ON r.user_id = u.id WHERE r.product_id = ? ORDER BY r.created_at DESC`,
+      [req.params.productId]
+    );
+    return ok(res, data);
+  } catch (err) { next(err); }
 };
 
-// Lấy đánh giá của user cho một sản phẩm
-exports.getUserReview = (req, res) => {
-  const { productId, userId } = req.params;
-  db.query(
-    "SELECT * FROM reviews WHERE product_id = ? AND user_id = ?",
-    [productId, userId],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(data[0] || null);
-    }
-  );
+exports.getUserReview = async (req, res, next) => {
+  try {
+    const [data] = await db.query(
+      "SELECT * FROM reviews WHERE product_id = ? AND user_id = ?",
+      [req.params.productId, req.user.id]
+    );
+    return ok(res, data[0] || null);
+  } catch (err) { next(err); }
 };
 
-// Tạo mới đánh giá
-exports.create = (req, res) => {
-  const { product_id, user_id, order_id, rating, comment } = req.body;
-  
-  if (!product_id || !user_id || !rating) {
-    return res.status(400).json({ error: "Thiếu thông tin bắt buộc" });
-  }
-  
-  if (rating < 1 || rating > 5) {
-    return res.status(400).json({ error: "Rating phải từ 1 đến 5" });
-  }
-
-  // Kiểm tra đã đánh giá chưa
-  db.query(
-    "SELECT id FROM reviews WHERE product_id = ? AND user_id = ?",
-    [product_id, user_id],
-    (err, existing) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (existing.length > 0) {
-        return res.status(400).json({ error: "Bạn đã đánh giá sản phẩm này rồi" });
-      }
-
-      db.query(
-        "INSERT INTO reviews (product_id, user_id, order_id, rating, comment) VALUES (?, ?, ?, ?, ?)",
-        [product_id, user_id, order_id || null, rating, comment || null],
-        (err, result) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.status(201).json({ id: result.insertId, message: "Đánh giá thành công" });
-        }
-      );
-    }
-  );
+exports.create = async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+    const { product_id, order_id, rating, comment } = req.body;
+    if (!product_id || !rating) return fail(res, 400, "Thiếu thông tin bắt buộc (product_id, rating)");
+    if (rating < 1 || rating > 5) return fail(res, 400, "Rating phải từ 1 đến 5");
+    const [existing] = await db.query("SELECT id FROM reviews WHERE product_id = ? AND user_id = ?", [product_id, user_id]);
+    if (existing.length > 0) return fail(res, 400, "Bạn đã đánh giá sản phẩm này rồi");
+    const [result] = await db.query(
+      "INSERT INTO reviews (product_id, user_id, order_id, rating, comment) VALUES (?, ?, ?, ?, ?)",
+      [product_id, user_id, order_id || null, rating, comment || null]
+    );
+    return created(res, { id: result.insertId }, "Đánh giá thành công");
+  } catch (err) { next(err); }
 };
 
-// Cập nhật đánh giá
-exports.update = (req, res) => {
-  const reviewId = req.params.id;
-  const { rating, comment } = req.body;
-
-  if (rating && (rating < 1 || rating > 5)) {
-    return res.status(400).json({ error: "Rating phải từ 1 đến 5" });
-  }
-
-  db.query(
-    "UPDATE reviews SET rating = COALESCE(?, rating), comment = COALESCE(?, comment) WHERE id = ?",
-    [rating, comment, reviewId],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Không tìm thấy đánh giá" });
-      }
-      res.json({ message: "Cập nhật đánh giá thành công" });
-    }
-  );
+exports.update = async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+    const reviewId = req.params.id;
+    const { rating, comment } = req.body;
+    if (rating && (rating < 1 || rating > 5)) return fail(res, 400, "Rating phải từ 1 đến 5");
+    const [existing] = await db.query("SELECT id FROM reviews WHERE id = ? AND user_id = ?", [reviewId, user_id]);
+    if (existing.length === 0) return fail(res, 403, "Bạn không có quyền sửa đánh giá này");
+    await db.query("UPDATE reviews SET rating = COALESCE(?, rating), comment = COALESCE(?, comment) WHERE id = ?", [rating, comment, reviewId]);
+    return success(res, "Cập nhật đánh giá thành công");
+  } catch (err) { next(err); }
 };
 
-// Xóa đánh giá
-exports.delete = (req, res) => {
-  const reviewId = req.params.id;
-  db.query("DELETE FROM reviews WHERE id = ?", [reviewId], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Không tìm thấy đánh giá" });
-    }
-    res.json({ message: "Xóa đánh giá thành công" });
-  });
+exports.delete = async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+    const reviewId = req.params.id;
+    const [existing] = await db.query("SELECT id FROM reviews WHERE id = ? AND user_id = ?", [reviewId, user_id]);
+    if (existing.length === 0) return fail(res, 403, "Bạn không có quyền xóa đánh giá này");
+    const [result] = await db.query("DELETE FROM reviews WHERE id = ?", [reviewId]);
+    if (result.affectedRows === 0) return fail(res, 404, "Không tìm thấy đánh giá");
+    return success(res, "Xóa đánh giá thành công");
+  } catch (err) { next(err); }
 };
 
-// Lấy rating trung bình của sản phẩm
-exports.getProductRating = (req, res) => {
-  const productId = req.params.productId;
-  db.query(
-    "SELECT AVG(rating) as avg_rating, COUNT(*) as total_reviews FROM reviews WHERE product_id = ?",
-    [productId],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({
-        avg_rating: data[0].avg_rating ? parseFloat(data[0].avg_rating).toFixed(1) : 0,
-        total_reviews: data[0].total_reviews || 0
-      });
-    }
-  );
+exports.getProductRating = async (req, res, next) => {
+  try {
+    const [data] = await db.query(
+      "SELECT AVG(rating) as avg_rating, COUNT(*) as total_reviews FROM reviews WHERE product_id = ?",
+      [req.params.productId]
+    );
+    return ok(res, {
+      avg_rating: data[0].avg_rating ? parseFloat(data[0].avg_rating).toFixed(1) : 0,
+      total_reviews: data[0].total_reviews || 0,
+    });
+  } catch (err) { next(err); }
 };

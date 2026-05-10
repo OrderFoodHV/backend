@@ -1,88 +1,50 @@
 const db = require("../config/db");
+const { ok, created, success, fail } = require("../utils/response");
 
-// Lấy tất cả voucher
-exports.getAll = (req, res) => {
-  db.query("SELECT * FROM vouchers WHERE is_active = 1", (err, data) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(data);
-  });
+exports.getAll = async (req, res, next) => {
+  try {
+    const [data] = await db.query("SELECT * FROM vouchers WHERE is_active = 1 AND expired_at > NOW() ORDER BY expired_at ASC");
+    return ok(res, data);
+  } catch (err) { next(err); }
 };
 
-// Lấy voucher theo code
-exports.getByCode = (req, res) => {
-  const { code } = req.params;
-  db.query(
-    "SELECT * FROM vouchers WHERE code = ? AND is_active = 1",
-    [code],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (data.length === 0) return res.status(404).json({ message: "Voucher không hợp lệ" });
-      
-      const voucher = data[0];
-      
-      // Kiểm tra hạn sử dụng
-      if (new Date(voucher.expired_at) < new Date()) {
-        return res.status(400).json({ message: "Voucher đã hết hạn" });
-      }
-      
-      // Kiểm tra số lượng
-      if (voucher.used_count >= voucher.max_uses) {
-        return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
-      }
-      
-      res.json(voucher);
-    }
-  );
+exports.getByCode = async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const [data] = await db.query("SELECT * FROM vouchers WHERE code = ? AND is_active = 1", [code]);
+    if (data.length === 0) return fail(res, 404, "Voucher không hợp lệ");
+    const voucher = data[0];
+    if (new Date(voucher.expired_at) < new Date()) return fail(res, 400, "Voucher đã hết hạn");
+    if (voucher.used_count >= voucher.max_uses) return fail(res, 400, "Voucher đã hết lượt sử dụng");
+    return ok(res, voucher);
+  } catch (err) { next(err); }
 };
 
-// Tạo voucher mới (admin)
-exports.create = (req, res) => {
-  const { code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at } = req.body;
-  
-  db.query(
-    `INSERT INTO vouchers (code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at, is_active) 
-     VALUES (?, ?, ?, ?, ?, ?, 1)`,
-    [code, discount_percent || 0, discount_amount || 0, min_order_amount || 0, max_uses || 1, expired_at],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: "Tạo voucher thành công", id: result.insertId });
-    }
-  );
+exports.create = async (req, res, next) => {
+  try {
+    const { code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at } = req.body;
+    if (!code || !expired_at) return fail(res, 400, "Thiếu thông tin bắt buộc (code, expired_at)");
+    const [result] = await db.query(
+      `INSERT INTO vouchers (code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at, is_active) 
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [code, discount_percent || 0, discount_amount || 0, min_order_amount || 0, max_uses || 1, expired_at]
+    );
+    return created(res, { id: result.insertId }, "Tạo voucher thành công");
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") return fail(res, 409, "Mã voucher này đã tồn tại");
+    next(err);
+  }
 };
 
-// Sử dụng voucher
-exports.useVoucher = (req, res) => {
-  const { code, order_id } = req.body;
-  
-  db.query(
-    "SELECT * FROM vouchers WHERE code = ? AND is_active = 1",
-    [code],
-    (err, data) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (data.length === 0) return res.status(404).json({ message: "Voucher không hợp lệ" });
-      
-      const voucher = data[0];
-      
-      if (new Date(voucher.expired_at) < new Date()) {
-        return res.status(400).json({ message: "Voucher đã hết hạn" });
-      }
-      
-      if (voucher.used_count >= voucher.max_uses) {
-        return res.status(400).json({ message: "Voucher đã hết lượt sử dụng" });
-      }
-      
-      // Cập nhật số lượng đã dùng
-      db.query(
-        "UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?",
-        [voucher.id],
-        (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          res.json({ 
-            message: "Áp dụng voucher thành công", 
-            discount: voucher.discount_percent || voucher.discount_amount 
-          });
-        }
-      );
-    }
-  );
+exports.useVoucher = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    const [data] = await db.query("SELECT * FROM vouchers WHERE code = ? AND is_active = 1", [code]);
+    if (data.length === 0) return fail(res, 404, "Voucher không hợp lệ");
+    const voucher = data[0];
+    if (new Date(voucher.expired_at) < new Date()) return fail(res, 400, "Voucher đã hết hạn");
+    if (voucher.used_count >= voucher.max_uses) return fail(res, 400, "Voucher đã hết lượt sử dụng");
+    await db.query("UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?", [voucher.id]);
+    return ok(res, { discount: voucher.discount_percent || voucher.discount_amount }, "Áp dụng voucher thành công");
+  } catch (err) { next(err); }
 };

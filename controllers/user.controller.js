@@ -1,40 +1,56 @@
-// GET all users
-exports.getUsers = (req, res) => {
-  db.query("SELECT * FROM users", (err, result) => {
-    if (err) {
-      return res.status(500).json(err);
-    }
-    res.json(result);
-  });
-};
-
-// CREATE user
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
+const { ok, created, success, fail } = require("../utils/response");
 
-exports.createUser = async (req, res) => {
-  const { name, email, password } = req.body;
-
+// Lấy tất cả users
+exports.getUsers = async (req, res, next) => {
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const sql = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
+    const [result] = await db.query(
+      "SELECT id, name, email, phone, role, status, created_at FROM users ORDER BY created_at DESC"
+    );
+    return ok(res, result);
+  } catch (err) { next(err); }
+};
 
-    db.query(sql, [name, email, hashedPassword], (err, result) => {
-      if (err) {
-        // Bắt riêng lỗi trùng email (ER_DUP_ENTRY)
-        if (err.code === "ER_DUP_ENTRY") {
-          return res
-            .status(400)
-            .json({
-              message: "Email này đã được sử dụng. Vui lòng chọn email khác!",
-            });
-        }
-        // Nếu là lỗi khác thì vẫn trả về 500
-        return res.status(500).json({ message: "Lỗi Server", error: err });
-      }
-      res.json({ message: "User created", id: result.insertId });
-    });
-  } catch (error) {
-    res.status(500).json(error);
+// Tạo user mới
+exports.createUser = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return fail(res, 400, "Vui lòng điền đủ thông tin");
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await db.query(
+      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+      [name, email, hashedPassword]
+    );
+    return created(res, { id: result.insertId }, "Tạo user thành công");
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") return fail(res, 409, "Email này đã được sử dụng!");
+    next(err);
   }
+};
+
+// Lấy thông tin profile của user hiện tại (từ token)
+exports.getProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const [rows] = await db.query(
+      "SELECT id, name, email, phone, role, status, created_at FROM users WHERE id = ?",
+      [userId]
+    );
+    if (rows.length === 0) return fail(res, 404, "Không tìm thấy người dùng");
+    return ok(res, rows[0]);
+  } catch (err) { next(err); }
+};
+
+// Cập nhật thông tin profile
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone } = req.body;
+    await db.query(
+      "UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone) WHERE id = ?",
+      [name, phone, userId]
+    );
+    return success(res, "Cập nhật thông tin thành công");
+  } catch (err) { next(err); }
 };
