@@ -2,6 +2,7 @@ const authService = require("../services/auth.service");
 const catchAsync = require("../utils/catchAsync"); // Gậy thần bắt lỗi
 
 exports.register = catchAsync(async (req, res, next) => {
+  console.log("🧨 DATA FRONTEND GỬI LÊN LÀ:", req.body);
   const { name, email, password, phone } = req.body;
 
   if (!name || !email || !password || !phone) {

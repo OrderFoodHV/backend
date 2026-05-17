@@ -1,29 +1,43 @@
 const orderRepo = require("../repositories/order.repository");
-const cartRepo = require("../repositories/cart.repository"); // Mượn tạm file của giỏ hàng
+const cartRepo = require("../repositories/cart.repository");
 
-exports.checkout = async (userId, shippingAddress) => {
-  // 1. Móc giỏ hàng ra xem có gì không
-  const cartItems = await cartRepo.getCartDetails(userId);
+exports.checkout = async (
+  userId,
+  shippingAddress,
+  itemsFromFE,
+  totalPriceFE,
+  paymentMethod,
+) => {
+  let cartItems = itemsFromFE; // Ưu tiên lấy món ăn FE truyền lên luôn
+
+  // Nếu FE không gửi items (Tức là bấm từ nút Giỏ hàng), thì mới đi tìm trong DB
+  if (!cartItems || cartItems.length === 0) {
+    cartItems = await cartRepo.getCartDetails(userId);
+  }
 
   if (!cartItems || cartItems.length === 0) {
-    const error = new Error("Giỏ hàng đang trống, không thể đặt hàng!");
+    const error = new Error("Chưa có món ăn nào để đặt!");
     error.statusCode = 400;
     throw error;
   }
 
-  // 2. Tự tính toán lại tổng tiền ở Backend (Không tin tưởng data từ Frontend gửi lên để chống hack)
-  const total_price = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  // Nếu FE đã tính total_price thì lấy luôn, không thì tự tính lại
+  const finalTotal =
+    totalPriceFE ||
+    cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // 3. Chuyền thông tin xuống Repository để chạy Transaction
+  // Đẩy xuống Repo lưu vào DB
   const orderId = await orderRepo.createOrderTransaction(
     userId,
     cartItems,
     shippingAddress,
-    total_price,
+    finalTotal,
   );
 
   return orderId;
+};
+
+// Hàm móc lịch sử
+exports.getOrders = async (userId) => {
+  return await orderRepo.findOrdersByUser(userId);
 };

@@ -16,7 +16,7 @@ exports.verifyToken = (req, res, next) => {
     // Cắt bỏ chữ "Bearer " thường đi kèm với token
     const tokenParts = token.split(" ")[1] || token;
 
-    const decoded = jwt.verify(tokenParts, "secret"); // "secret" phải giống lúc login
+    const decoded = jwt.verify(tokenParts, process.env.JWT_SECRET); // "secret" phải giống lúc login
 
     // Lấy id in chìm trong thẻ gán vào req.user để các hàm phía sau dùng
     req.user = decoded;

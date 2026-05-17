@@ -44,11 +44,16 @@ exports.loginUser = async (email, password) => {
   }
 
   // 3. Tạo Token
-  const accessToken = jwt.sign({ id: user.id, role: user.role }, "secret", {
-    expiresIn: "1h",
-  });
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1h",
+    },
+  );
 
-  const refreshToken = jwt.sign({ id: user.id }, "refresh_secret", {
+  const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    // Hoặc tạo 1 REFRESH_SECRET riêng trong .env
     expiresIn: "30d",
   });
 

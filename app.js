@@ -10,6 +10,7 @@ const app = express();
 require("./config/db");
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // thêm ở đây
 const authRoutes = require("./src/routes/auth.routes");
