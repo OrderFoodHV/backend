@@ -39,6 +39,8 @@ const cancelRoutes = require("./routes/cancel.routes");
 app.use("/api/cancel", cancelRoutes);
 const reorderRoutes = require("./routes/reorder.routes");
 app.use("/api/reorder", reorderRoutes);
+const favoriteRoutes = require("./routes/favorite.routes");
+app.use("/api/favorites", favoriteRoutes);
 
 // Admin routes - Tách biệt trong thư mục riêng
 const adminRoutes = require("./admin/routes");
