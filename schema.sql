@@ -32,6 +32,7 @@ CREATE TABLE stores (
     phone VARCHAR(50),
     description TEXT,
     status ENUM('pending', 'active', 'blocked') DEFAULT 'pending',
+    is_open BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE
@@ -59,6 +60,25 @@ CREATE TABLE vouchers (
     expired_at DATETIME NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE store_vouchers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    store_id INT NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    discount_type ENUM('percent', 'fixed') NOT NULL,
+    discount_value DECIMAL(10,2) NOT NULL,
+    min_order_amount DECIMAL(10,2) DEFAULT 0,
+    max_discount DECIMAL(10,2) DEFAULT 0,
+    quantity INT NOT NULL DEFAULT 100,
+    used_count INT DEFAULT 0,
+    start_date DATETIME,
+    end_date DATETIME NOT NULL,
+    status ENUM('active', 'inactive', 'expired') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE (store_id, code),
+    FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
 
 CREATE TABLE rewards (
@@ -325,6 +345,9 @@ CREATE INDEX idx_voucher_code ON vouchers (code);
 CREATE INDEX idx_reward_user ON rewards (user_id);
 CREATE INDEX idx_notification_user ON notifications (user_id);
 CREATE INDEX idx_notification_read ON notifications (user_id, is_read);
+CREATE INDEX idx_store_vouchers_store ON store_vouchers (store_id, status);
+CREATE INDEX idx_orders_store ON orders (store_id, status);
+CREATE INDEX idx_stores_owner ON stores (owner_id);
 
 -- =====================================================
 -- DỮ LIỆU MẪU

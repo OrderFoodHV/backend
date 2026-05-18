@@ -44,6 +44,10 @@ app.use("/api/reorder", reorderRoutes);
 const adminRoutes = require("./admin/routes");
 app.use("/api/admin", adminRoutes);
 
+// Store routes cho chủ cửa hàng
+const storeRoutes = require("./store/routes");
+app.use("/api/store", storeRoutes);
+
 // Serve admin-web tại /admin
 app.use("/admin", express.static(path.join(__dirname, "../admin-web")));
 

@@ -10,7 +10,7 @@ exports.createOrder = async (req, res, next) => {
     if (!address || address.trim() === "") return fail(res, 400, "Vui lòng nhập địa chỉ giao hàng!");
     await conn.beginTransaction();
     const [cartRows] = await conn.query(
-      `SELECT c.id as cart_id, IFNULL(SUM(p.price * ci.quantity), 0) as real_total
+      `SELECT c.id as cart_id, IFNULL(SUM(p.price * ci.quantity), 0) as real_total, MAX(p.store_id) as store_id
        FROM carts c JOIN cart_items ci ON c.id = ci.cart_id JOIN products p ON ci.product_id = p.id
        WHERE c.user_id = ? GROUP BY c.id`,
       [user_id]
@@ -21,9 +21,10 @@ exports.createOrder = async (req, res, next) => {
     }
     const cartId = cartRows[0].cart_id;
     const realTotal = cartRows[0].real_total;
+    const storeId = cartRows[0].store_id;
     const [orderResult] = await conn.query(
-      "INSERT INTO orders (user_id, total_price, address, status) VALUES (?, ?, ?, 'pending')",
-      [user_id, realTotal, address]
+      "INSERT INTO orders (user_id, store_id, total_price, address, status) VALUES (?, ?, ?, ?, 'pending')",
+      [user_id, storeId, realTotal, address]
     );
     const newOrderId = orderResult.insertId;
     await conn.query(
