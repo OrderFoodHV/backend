@@ -1,11 +1,14 @@
-const router = require("express").Router();
+const router = require("express").Router({ mergeParams: true });
+const { verifyStoreAccess } = require("../middlewares/store.middleware");
 const storeProduct = require("../controllers/storeProduct.controller");
 
-router.get("/:storeId/products", storeProduct.getProducts);
-router.post("/:storeId/products", storeProduct.createProduct);
-router.put("/:storeId/products/bulk-toggle", storeProduct.bulkToggle);
-router.put("/:storeId/products/:productId", storeProduct.updateProduct);
-router.delete("/:storeId/products/:productId", storeProduct.deleteProduct);
-router.put("/:storeId/products/:productId/toggle", storeProduct.toggleAvailability);
+router.use(verifyStoreAccess);
+
+router.get("/", storeProduct.getProducts);
+router.post("/", storeProduct.createProduct);
+router.put("/bulk-toggle", storeProduct.bulkToggle);
+router.put("/:productId/toggle", storeProduct.toggleAvailability);
+router.put("/:productId", storeProduct.updateProduct);
+router.delete("/:productId", storeProduct.deleteProduct);
 
 module.exports = router;

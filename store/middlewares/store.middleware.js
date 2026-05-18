@@ -29,6 +29,7 @@ exports.verifyStoreOwner = async (req, res, next) => {
  */
 exports.verifyStoreAccess = async (req, res, next) => {
   try {
+    console.log("verifyStoreAccess CALLED! URL:", req.originalUrl, "StoreId:", req.params.storeId);
     const userId = req.user.id;
     const storeId = req.params.storeId;
 

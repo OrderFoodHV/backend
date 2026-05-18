@@ -12,18 +12,14 @@ const storeVoucherRoutes = require("./storeVoucher.routes");
 // Tất cả API store đều yêu cầu đăng nhập
 router.use(verifyToken);
 
-// Middleware kiểm tra quyền truy cập store cho tất cả route có :storeId
-router.param("storeId", async (req, res, next, storeId) => {
-  req.params.storeId = storeId;
-  await verifyStoreAccess(req, res, next);
-});
+// Middleware verifyStoreAccess đã được tích hợp vào từng sub-router
 
 // Mount các route
-router.use("/", revenueRoutes);
-router.use("/", storeStatusRoutes);
-router.use("/", notificationRoutes);
-router.use("/", storeOrderRoutes);
-router.use("/", storeProductRoutes);
-router.use("/", storeVoucherRoutes);
+router.use("/:storeId/revenue", revenueRoutes);
+router.use("/:storeId/status", storeStatusRoutes);
+router.use("/:storeId/notifications", notificationRoutes);
+router.use("/:storeId/orders", storeOrderRoutes);
+router.use("/:storeId/products", storeProductRoutes);
+router.use("/:storeId/vouchers", storeVoucherRoutes);
 
 module.exports = router;

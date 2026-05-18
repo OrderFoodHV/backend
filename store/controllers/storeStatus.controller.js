@@ -1,5 +1,5 @@
-const db = require("../../config/db");
-const { ok, success, fail } = require("../../utils/response");
+const { ok, success } = require("../../utils/response");
+const storeStatusService = require("../services/storeStatus.service");
 
 /**
  * Lấy trạng thái cửa hàng
@@ -7,13 +7,9 @@ const { ok, success, fail } = require("../../utils/response");
  */
 exports.getStatus = async (req, res, next) => {
   try {
-    const store = req.store; // Đã được gắn bởi verifyStoreAccess
-    return ok(res, {
-      id: store.id,
-      name: store.name,
-      is_open: store.is_open,
-      status: store.status,
-    }, "Lấy trạng thái cửa hàng thành công");
+    console.log("HELLO FROM GET STATUS! req.store =", req.store);
+    const data = storeStatusService.getStoreStatus(req.store);
+    return ok(res, data, "Lấy trạng thái cửa hàng thành công");
   } catch (err) {
     next(err);
   }
@@ -25,13 +21,8 @@ exports.getStatus = async (req, res, next) => {
  */
 exports.toggleStatus = async (req, res, next) => {
   try {
-    const storeId = req.params.storeId;
-    const store = req.store;
-
-    const newStatus = store.is_open ? 0 : 1;
-    await db.query("UPDATE stores SET is_open = ? WHERE id = ?", [newStatus, storeId]);
-
-    return success(res, newStatus ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA");
+    const message = await storeStatusService.toggleStoreStatus(req.store);
+    return success(res, message);
   } catch (err) {
     next(err);
   }

@@ -1,7 +1,12 @@
-const router = require("express").Router();
+const router = require("express").Router({ mergeParams: true });
+const { verifyStoreAccess } = require("../middlewares/store.middleware");
 const storeStatus = require("../controllers/storeStatus.controller");
 
-router.get("/:storeId/status", storeStatus.getStatus);
-router.put("/:storeId/status/toggle", storeStatus.toggleStatus);
+console.log("verifyStoreAccess TYPE:", typeof verifyStoreAccess);
+
+router.use(verifyStoreAccess);
+
+router.get("/", storeStatus.getStatus);
+router.put("/toggle", storeStatus.toggleStatus);
 
 module.exports = router;
