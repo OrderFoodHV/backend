@@ -30,3 +30,10 @@ exports.updateProfile = async (userId, data) => {
   await userRepo.update(userId, updateData);
   return "Cập nhật hồ sơ thành công!";
 };
+exports.deleteAccount = async (userId) => {
+  const affectedRows = await userRepo.deleteUserById(userId);
+  if (affectedRows === 0) {
+    throw new Error("Không tìm thấy tài khoản để xóa sếp ơi!");
+  }
+  return "Đã xóa tài khoản vĩnh viễn khỏi cơ sở dữ liệu!";
+};

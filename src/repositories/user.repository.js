@@ -21,3 +21,8 @@ exports.findById = async (id) => {
 exports.update = async (id, updateData) => {
   return await db("users").where({ id }).update(updateData);
 };
+exports.deleteUserById = async (userId) => {
+  const query = "DELETE FROM users WHERE id = ?";
+  const [result] = await db.query(query, [userId]);
+  return result.affectedRows; // Trả về số lượng bản ghi đã bị xóa thật sự
+};

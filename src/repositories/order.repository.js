@@ -50,8 +50,14 @@ exports.findOrderItemsDetails = async (orderId) => {
 };
 
 // Đổi trạng thái đơn hàng (Dành cho Shipper/Admin)
+// Mở file order.repository.js bên Backend và sửa lại hàm này:
 exports.updateOrderStatus = async (orderId, newStatus) => {
-  return await db("orders")
-    .where({ id: orderId })
-    .update({ status: newStatus });
+  const updateData = { status: newStatus };
+
+  //Nếu đơn hàng chuyển sang hoàn thành, tự động thu tiền luôn (Đổi thành paid)
+  if (newStatus === "completed" || newStatus === "delivered") {
+    updateData.payment_status = "paid";
+  }
+
+  return await db("orders").where({ id: orderId }).update(updateData);
 };

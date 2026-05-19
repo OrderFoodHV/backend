@@ -6,27 +6,27 @@ exports.checkout = async (
   shippingAddress,
   itemsFromFE,
   totalPriceFE,
-  paymentMethod,
 ) => {
-  let cartItems = itemsFromFE; // Ưu tiên lấy món ăn FE truyền lên luôn
+  // BƯỚC KHÔN NGOAN: Nếu FE gửi sẵn món ăn (Luồng Mua Ngay), xài luôn!
+  let cartItems = itemsFromFE;
 
-  // Nếu FE không gửi items (Tức là bấm từ nút Giỏ hàng), thì mới đi tìm trong DB
+  // Nếu FE không gửi món ăn nào (Luồng đi từ Giỏ Hàng), mới mò xuống DB quét
   if (!cartItems || cartItems.length === 0) {
     cartItems = await cartRepo.getCartDetails(userId);
   }
 
   if (!cartItems || cartItems.length === 0) {
-    const error = new Error("Chưa có món ăn nào để đặt!");
+    const error = new Error("Không có sản phẩm nào để tiến hành đặt hàng!");
     error.statusCode = 400;
     throw error;
   }
 
-  // Nếu FE đã tính total_price thì lấy luôn, không thì tự tính lại
+  // Tính toán tổng tiền bảo mật
   const finalTotal =
     totalPriceFE ||
     cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Đẩy xuống Repo lưu vào DB
+  // Chuyền thông tin xuống Repo chạy Transaction khóa sổ dữ liệu
   const orderId = await orderRepo.createOrderTransaction(
     userId,
     cartItems,
@@ -37,7 +37,6 @@ exports.checkout = async (
   return orderId;
 };
 
-// Hàm móc lịch sử
 exports.getOrders = async (userId) => {
   return await orderRepo.findOrdersByUser(userId);
 };

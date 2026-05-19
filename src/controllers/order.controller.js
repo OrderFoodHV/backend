@@ -3,8 +3,13 @@ const catchAsync = require("../utils/catchAsync");
 
 exports.createOrder = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
-  // Lấy TOÀN BỘ dữ liệu FE gửi lên (Kể cả mảng items mua ngay)
-  const { address, items, total_price, payment_method_value } = req.body;
+
+  // Kính chiếu yêu xem FE gửi bọc qua chữ 'data' hay gửi thẳng tuột
+  console.log("🧨 DỮ LIỆU THỰC TẾ BE NHẬN ĐƯỢC LÀ:", req.body);
+
+  // Giải quyết triệt để lỗi bọc biến của Formik/Redux Toolkit
+  const finalData = req.body.data ? req.body.data : req.body;
+  const { address, items, total_price } = finalData;
 
   if (!address) {
     const error = new Error("Vui lòng nhập địa chỉ giao hàng!");
@@ -12,29 +17,30 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     throw error;
   }
 
-  // Đẩy sang Service xử lý, ném luôn mảng items và total_price xuống
+  // Đẩy sang Service xử lý nguyên cục
   const orderId = await orderService.checkout(
     userId,
     address,
     items,
     total_price,
-    payment_method_value,
   );
 
+  // Trả về kết quả khớp với mong đợi của FE (.result)
   res.status(201).json({
     status: "success",
     message: "Đặt hàng thành công!",
-    data: { order_id: orderId },
+    success: true,
+    result: {
+      order_id: orderId,
+      address,
+      total_price,
+      order_status: "pending",
+    },
   });
 });
 
-// Hàm hứng API lấy lịch sử đơn hàng
 exports.getHistory = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
   const orders = await orderService.getOrders(userId);
-
-  res.status(200).json({
-    status: "success",
-    data: orders, // Trả mảng orders về cho FE
-  });
+  res.status(200).json({ status: "success", data: orders });
 });

@@ -20,3 +20,12 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     message: message,
   });
 });
+exports.deleteMe = catchAsync(async (req, res, next) => {
+  const userId = req.user.id; // Bóc tách id từ Token người dùng đăng nhập
+  const message = await userService.deleteAccount(userId);
+
+  res.status(200).json({
+    status: "success",
+    message: message,
+  });
+});

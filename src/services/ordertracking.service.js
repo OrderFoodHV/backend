@@ -29,9 +29,9 @@ exports.getOrderDetails = async (orderId, userId) => {
 exports.changeStatus = async (orderId, newStatus) => {
   const allowedStatuses = [
     "pending",
-    "cooking",
-    "shipping",
-    "delivered",
+    "confirmed",
+    "delivering",
+    "completed",
     "cancelled",
   ];
 
