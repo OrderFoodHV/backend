@@ -2,7 +2,7 @@ const { ok, success, fail, created } = require("../../src/utils/response");
 const notificationService = require("../services/notification.service");
 
 /**
- * SSE: Stream thông báo đơn mới real-time
+ * SSE: Stream thông báo đơn mới real-time (ĐÃ NÂNG CẤP KẾT HỢP SOCKET VÀ SSE)
  * GET /api/store/:storeId/notifications/stream
  */
 exports.streamNewOrders = async (req, res, next) => {
@@ -20,7 +20,14 @@ exports.streamNewOrders = async (req, res, next) => {
 
     let lastOrderId = await notificationService.getLatestOrderId(storeId);
 
-    // Polling mỗi 5 giây
+    // 🌟 THÊM MỚI: BẮN THÔNG BÁO THỜI GIAN THỰC QUA SOCKET.IO NGAY LẬP TỨC
+    if (global._io) {
+      global._io.to(`store_room_${storeId}`).emit("store_connected", {
+        message: "🔔 Đã thiết lập kênh realtime sấm sét thành công!",
+      });
+    }
+
+    // Polling mỗi 5 giây (Giữ lại làm fallback dự phòng cho hệ thống cực kỳ an toàn)
     const interval = setInterval(async () => {
       try {
         const result = await notificationService.pollNewOrders(

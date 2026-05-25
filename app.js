@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Socket Events
-io.on("connection", (socket) => {
+global._io.on("connection", (socket) => {
   console.log(`🔌 Thiết bị kết nối: ${socket.id}`);
 
   // Đăng ký nhận thông báo theo Vai trò / ID tương ứng

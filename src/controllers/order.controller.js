@@ -1,6 +1,8 @@
 // src/controllers/order.controller.js
 const orderService = require("../services/order.service");
 const catchAsync = require("../utils/catchAsync");
+// 🌟 THÊM MỚI: Import service thông báo để ghi lịch sử cho User khi đặt đơn thành công
+const notiService = require("../services/notifications.service");
 
 exports.createOrder = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
@@ -8,7 +10,13 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   console.log("🧨 DỮ LIỆU THỰC TẾ BE NHẬN ĐƯỢC LÀ:", req.body);
 
   const finalData = req.body.data ? req.body.data : req.body;
-  const { address, items, total_price, store_id } = finalData;
+
+  let store_id = finalData.store_id;
+  if (!store_id && finalData.items && finalData.items.length > 0) {
+    store_id = finalData.items[0].store_id;
+  }
+
+  const { address, items, total_price, note } = finalData;
 
   if (!address) {
     const error = new Error("Vui lòng nhập địa chỉ giao hàng!");
@@ -16,23 +24,21 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     throw error;
   }
 
-  // Đẩy sang Service làm việc
   const { orderId, finalStoreId } = await orderService.checkout(
     userId,
     store_id,
     address,
     items,
     total_price,
+    note || null,
   );
 
-  // ========================================================
-  // ⚡ BÙA REAL-TIME SẤM SÉT: BẮN THÔNG BÁO CHO APP STORE CHỦ QUÁN
-  // ========================================================
   const orderPayloadForStore = {
     order_id: orderId,
     address,
     total_price: total_price || "Đang tính toán",
     status: "pending",
+    note: note || null,
     created_at: new Date(),
   };
 
@@ -45,6 +51,17 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   console.log(
     `🚀 Đã phát tín hiệu nổ đơn thành công đến phòng: store_room_${finalStoreId}`,
   );
+
+  // ========================================================
+  // 🌟 THÊM MỚI: Ghi vết thông báo vào trang Lịch sử thông báo của User (Giai đoạn 1)
+  // ========================================================
+  await notiService.createNotification({
+    userId: userId,
+    role: "user",
+    title: "Đặt hàng thành công! 🛒",
+    content: `Đơn hàng #${orderId} của sếp đã được gửi tới cửa hàng. Đang chờ quán xác nhận nhen!`,
+    type: "order",
+  });
   // ========================================================
 
   res.status(201).json({
@@ -60,12 +77,8 @@ exports.createOrder = catchAsync(async (req, res, next) => {
   });
 });
 
-// 🔥 KHÔI PHỤC HÀM XEM LỊCH SỬ ĐƠN HÀNG (BỊ THIẾU CHÍ MẠNG Ở ĐÂY)
 exports.getHistory = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
   const orders = await orderService.getOrders(userId);
-  res.status(200).json({
-    status: "success",
-    data: orders,
-  });
+  res.status(200).json({ status: "success", data: orders });
 });

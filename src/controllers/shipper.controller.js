@@ -2,6 +2,8 @@
 const db = require("../../config/db"); // Đường dẫn đến file config db của sếp
 const shipperService = require("../services/shipper.service");
 const catchAsync = require("../utils/catchAsync");
+// 🌟 THÊM MỚI: Import service thông báo lõi để ghi vết lịch sử thông báo
+const notiService = require("../services/notifications.service");
 
 exports.registerShipper = catchAsync(async (req, res) => {
   const userId = req.user.id; // Lấy ID từ Token
@@ -37,56 +39,91 @@ exports.viewAvailableOrders = catchAsync(async (req, res) => {
   res.status(200).json({ success: true, data: orders });
 });
 
-// 🌟 SỬA HÀM NÀY: TÀI XẾ BẤM NHẬN ĐƠN (GIAI ĐOẠN 3)
+// 🌟 SỬA HÀM NÀY: TÀI XẾ BẤM NHẬN ĐƠN + LƯU LỊCH SỬ THÔNG BÁO
 exports.accept = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const { orderId } = req.params;
 
-  // Chạy nghiệp vụ lưu vào DB cũ của sếp
   const message = await shipperService.acceptOrder(userId, orderId);
 
-  // ⚡ MÓC DỮ LIỆU TÀI XẾ THẬT ĐỂ BẮN CHO USER XEM MẶT MŨI, XE CỘ
   const shipper = await db("shippers")
     .join("users", "users.id", "=", "shippers.user_id")
     .select("users.user_name", "shippers.vehicle", "shippers.phone")
     .where("shippers.user_id", userId)
     .first();
 
-  // Bắn tin nhắn Real-time vào phòng theo dõi của Đơn hàng cho Khách xem UI đổi trạng thái
+  const order = await db("orders").where({ id: orderId }).first();
+
   if (global._io) {
+    // 1. Báo Real-time cho Khách
     global._io.to(`order_room_${orderId}`).emit("order_status_updated", {
-      status: "driver_assigned", // Trạng thái: Đã tìm thấy xế
+      status: "delivering", // Nhảy luôn sang điểm vòng tròn số 3 (Đang giao)
       driver: {
-        name: shipper?.user_name || "Tài xế InOrder",
-        avatar: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", // Demo avatar link, sếp có thể thay bằng shipper.avatar nếu có cột trong DB
-        vehicle: shipper?.vehicle || "Xe máy",
-        licensePlate: "29H1 - 123.45", // Biển số xe mẫu, hoặc lấy từ DB nếu sếp có lưu cột license_plate
+        name: shipperInfo.name || "Tài xế InOrder",
+        avatar: shipperInfo.avatar || "https://i.imgur.com/6VBx3io.png",
+        vehicle: shipperInfo.vehicle || "Wave Alpha",
+        licensePlate: shipperInfo.license_plate || "29H1 - 999.99",
       },
     });
+
+    // 2. 🌟 THÊM MỚI: BÁO CHO MÁY CỦA CHỦ QUÁN BIẾT LÀ ĐÃ CÓ TÀI XẾ CHỐT ĐƠN NÀY RỒI
+    if (order) {
+      global._io
+        .to(`store_room_${order.store_id}`)
+        .emit("order_status_updated", {
+          type: "driver_found",
+          orderId: orderId,
+          message: "Đơn hàng của bạn đã có tài xế nhận!",
+        });
+    }
   }
 
   res.status(200).json({ success: true, message });
 });
 
-// 🌟 SỬA HÀM NÀY: TÀI XẾ GIAO THÀNH CÔNG (GIAI ĐOẠN 6)
+// 🌟 SỬA HÀM NÀY: TÀI XẾ GIAO THÀNH CÔNG + LƯU LỊCH SỬ THÔNG BÁO
 exports.complete = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const { orderId } = req.params;
 
-  // Chạy nghiệp vụ DB cũ của sếp
+  // 1. Nghiệp vụ DB cũ của sếp
   const message = await shipperService.completeOrder(userId, orderId);
 
-  // ⚡ BẮN LỆNH HOÀN THÀNH ĐƠN ĐỂ MÁY USER NỔ PHÁO HOA
+  // Móc thông tin đơn hàng để lấy ID khách hàng phục vụ lưu thông báo lịch sử
+  const order = await db("orders").where({ id: orderId }).first();
+
   if (global._io) {
+    // 2. Kích hoạt nổ pháo hoa bên giao diện Khách hàng thời gian thực
     global._io.to(`order_room_${orderId}`).emit("order_status_updated", {
-      status: "completed", // Trạng thái: Hoàn thành!
+      status: "completed",
     });
+
+    // 3. 🌟 THÊM MỚI: Lưu lịch sử thông báo hoàn tất cho cả Khách hàng và Tài xế
+    if (order) {
+      // Thông báo cho Khách
+      await notiService.createNotification({
+        userId: order.user_id,
+        role: "user",
+        title: "Giao hàng thành công! 🎉",
+        content: `Đơn hàng #${orderId} đã được giao tận tay bạn. Chúc bạn ăn ngon miệng!`,
+        type: "order_status",
+      });
+
+      // Thông báo cộng tiền vào ví cho Tài xế
+      await notiService.createNotification({
+        userId: userId, // ID tài khoản tài xế
+        role: "shipper",
+        title: "Thu nhập được cộng! 💰",
+        content: `Bạn đã nhận được +15.000đ từ việc hoàn thành đơn hàng #${orderId}.`,
+        type: "wallet",
+      });
+    }
   }
 
   res.status(200).json({ success: true, message });
 });
 
-// Xử lý Thống kê & Ví thu nhập Tài Xế (GIỮ NGUYÊN)
+// Xử lý Thống kê & Ví thu nhập Tài Xế (GIỮ NGUYÊN 100%)
 exports.getWallet = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const shipper = await db("shippers").where({ user_id: userId }).first();
