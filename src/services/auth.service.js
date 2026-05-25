@@ -20,7 +20,8 @@ exports.registerUser = async (name, email, password, phone) => {
     email,
     password: hashedPassword,
     phone,
-    role: "customer",
+    role: "user",
+    status: "active",
   });
 
   return newUserId;
@@ -45,7 +46,12 @@ exports.loginUser = async (email, password) => {
 
   // 3. Tạo Token
   const accessToken = jwt.sign(
-    { id: user.id, role: user.role },
+    {
+      id: user.id,
+      role: user.role,
+      is_shipper: user.is_shipper || 0,
+      is_seller: user.is_seller || 0,
+    }, // Payload token có thêm is_shipper và is_seller để frontend dễ dàng phân quyền hiển thị giao diện
     process.env.JWT_SECRET,
     {
       expiresIn: "1h",

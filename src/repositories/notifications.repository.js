@@ -1,15 +1,14 @@
 const db = require("../../config/db");
 
 exports.getNotificationsByUserId = async (userId) => {
-  const query =
-    "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC";
-  // SỬA THÀNH CÚ PHÁP KNEX CHUẨN:
-  const [rows] = await db.raw("SELECT * FROM notifications WHERE ...");
-  return rows;
+  // Chuyển sang dùng cú pháp Query Builder của Knex cho mượt và sạch code
+  return await db("notifications")
+    .where({ user_id: userId })
+    .orderBy("created_at", "desc");
 };
 
 exports.markAsReadRepository = async (userId) => {
-  const query = "UPDATE notifications SET is_read = 1 WHERE user_id = ?";
-  const [result] = await db.query(query, [userId]);
-  return result.affectedRows;
+  return await db("notifications")
+    .where({ user_id: userId })
+    .update({ is_read: 1 });
 };

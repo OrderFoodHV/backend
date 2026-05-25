@@ -1,12 +1,11 @@
 const router = require("express").Router({ mergeParams: true });
 const { verifyStoreAccess } = require("../middlewares/store.middleware");
-const storeOrder = require("../controllers/storeOrder.controller");
-
+const storeOrderController = require("../controllers/storeOrder.controller");
 router.use(verifyStoreAccess);
 
-router.get("/", storeOrder.getOrders);
-router.get("/stats", storeOrder.getOrderStats);
-router.get("/:orderId", storeOrder.getOrderDetail);
-router.put("/:orderId/status", storeOrder.updateOrderStatus);
+router.get("/", storeOrderController.getOrders);
+router.get("/stats", storeOrderController.getOrderStats);
+router.get("/:orderId", storeOrderController.getOrderDetail);
+router.put("/:orderId/status", storeOrderController.updateOrderStatus);
 
 module.exports = router;

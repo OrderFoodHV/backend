@@ -1,14 +1,11 @@
 const orderRepo = require("../repositories/order.repository");
+const trackingRepo = require("../repositories/ordertracking.repository");
 
-// 1. Logic lấy lịch sử đơn hàng
 exports.getUserHistory = async (userId) => {
-  const orders = await orderRepo.findOrdersByUser(userId);
-  return orders;
+  return await orderRepo.findOrdersByUser(userId);
 };
 
-// 2. Logic xem chi tiết 1 đơn hàng
 exports.getOrderDetails = async (orderId, userId) => {
-  // Bổ sung security: Móc đơn ra xem có đúng của ông khách này không
   const orders = await orderRepo.findOrdersByUser(userId);
   const isOwner = orders.find((o) => o.id == orderId);
 
@@ -19,13 +16,16 @@ exports.getOrderDetails = async (orderId, userId) => {
   }
 
   const items = await orderRepo.findOrderItemsDetails(orderId);
+  // Móc thêm cả mốc thời gian luân chuyển đơn từ bảng order_tracking ra trả về cho FE vẽ timeline
+  const timelines = await trackingRepo.getTrackingLogsByOrderId(orderId);
+
   return {
     order_info: isOwner,
     items: items,
+    timelines: timelines,
   };
 };
 
-// 3. Logic Shipper cập nhật trạng thái
 exports.changeStatus = async (orderId, newStatus) => {
   const allowedStatuses = [
     "pending",
@@ -34,13 +34,19 @@ exports.changeStatus = async (orderId, newStatus) => {
     "completed",
     "cancelled",
   ];
-
   if (!allowedStatuses.includes(newStatus)) {
-    const error = new Error("Trạng thái không hợp lệ!");
-    error.statusCode = 400;
-    throw error;
+    throw new Error("Trạng thái không hợp lệ!");
   }
 
+  // 1. Cập nhật trạng thái chính ở bảng orders
   await orderRepo.updateOrderStatus(orderId, newStatus);
+
+  // 2. Bắn thêm một dòng lịch sử vào bảng log order_tracking để đồng bộ thiết kế mới
+  await trackingRepo.insertLog(
+    orderId,
+    newStatus,
+    `Hệ thống cập nhật trạng thái đơn thành: ${newStatus}`,
+  );
+
   return `Đã chuyển đơn hàng sang trạng thái: ${newStatus}`;
 };

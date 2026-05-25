@@ -1,3 +1,4 @@
+// src/repositories/review.repository.js
 const db = require("../../config/db");
 
 exports.createReviewTransaction = async (
@@ -7,16 +8,13 @@ exports.createReviewTransaction = async (
   stars,
   comment,
 ) => {
-  const query = `
-    INSERT INTO reviews (user_id, product_id, order_id, rating_stars, comment_text, created_at)
-    VALUES (?, ?, ?, ?, ?, NOW())
-  `;
-  const [result] = await db.query(query, [
-    userId,
-    productId,
-    orderId,
-    stars,
-    comment,
-  ]);
-  return result.insertId;
+  // Sửa: Khớp đúng tên cột 'rating' và 'comment' trong schema.sql
+  const [insertId] = await db("reviews").insert({
+    user_id: userId,
+    product_id: productId,
+    order_id: orderId,
+    rating: stars,
+    comment: comment,
+  });
+  return insertId;
 };

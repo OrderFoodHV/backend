@@ -4,6 +4,9 @@ const {
   verifyStoreAccess,
 } = require("../../store/middlewares/store.middleware");
 
+// Import controller mới tạo
+const storeProfileController = require("../controllers/storeProfile.controller");
+
 const revenueRoutes = require("./revenue.routes");
 const storeStatusRoutes = require("./storeStatus.routes");
 const notificationRoutes = require("./notification.routes");
@@ -13,6 +16,9 @@ const storeVoucherRoutes = require("./storeVoucher.routes");
 
 // Tất cả API store đều yêu cầu đăng nhập
 router.use(verifyToken);
+
+// 🔥 ROUTE ĐĂNG KÝ QUÁN (Phải đặt ở đây, trước các route /:storeId)
+router.post("/register", storeProfileController.registerStore);
 
 // Middleware verifyStoreAccess đã được tích hợp vào từng sub-router
 

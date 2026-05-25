@@ -2,37 +2,32 @@ const db = require("../../config/db");
 
 exports.createOrderTransaction = async (
   userId,
+  storeId,
   cartItems,
   shippingAddress,
   totalAmount,
 ) => {
-  // Bắt đầu Transaction
   return await db.transaction(async (trx) => {
-    // 1. Nhét dữ liệu vào bảng orders
+    // 1. Insert và lấy ID chuẩn nhất
     const [orderId] = await trx("orders").insert({
       user_id: userId,
+      store_id: storeId, // Đã thêm storeId
       address: shippingAddress,
       total_price: totalAmount,
-      status: "pending", // Đơn mới đang chờ xử lý
+      status: "pending",
+      created_at: new Date(),
     });
 
-    // 2. Chuẩn bị danh sách món ăn để nhét vào bảng order_items
     const orderItemsData = cartItems.map((item) => ({
-      order_id: orderId,
+      order_id: orderId, // Dùng ID này
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
     }));
     await trx("order_items").insert(orderItemsData);
 
-    // 3. Xóa sạch giỏ hàng của khách (Tìm giỏ hàng rồi xóa các items)
-    const cart = await trx("carts").where({ user_id: userId }).first();
-    if (cart) {
-      await trx("cart_items").where({ cart_id: cart.id }).del();
-    }
-
-    // Nếu chạy êm xuôi đến đây, tự động lưu (Commit)
-    return orderId;
+    // Xóa giỏ hàng...
+    return orderId; // Trả về con số (ví dụ: 101)
   });
 };
 

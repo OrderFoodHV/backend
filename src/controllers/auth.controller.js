@@ -49,9 +49,11 @@ exports.login = catchAsync(async (req, res, next) => {
     data: {
       user: {
         id: user.id,
-        name: user.name,
+        name: user.name || user.user_name,
         email: user.email,
         role: user.role,
+        is_shipper: user.is_shipper || 0, // Cờ này sẽ giúp frontend biết người dùng có phải là Shipper hay không để hiển thị giao diện phù hợp (VD: menu Shipper riêng)
+        is_seller: user.is_seller || 0, // Cờ này sẽ giúp frontend biết người dùng có phải là Seller hay không để hiển thị giao diện phù hợp (VD: menu Seller riêng)
       },
       access_token: accessToken,
       refresh_token: refreshToken,

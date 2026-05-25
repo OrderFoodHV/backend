@@ -1,14 +1,32 @@
+// src/routes/shipper.routes.js
 const router = require("express").Router();
-const shipper = require("../controllers/shipper.controller");
+const shipperController = require("../controllers/shipper.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
+const { verifyShipper } = require("../middlewares/shipper.middleware");
 
-// Xem đơn nhàn rỗi
-router.get("/orders/available", verifyToken, shipper.viewAvailableOrders);
-
-// Nhận đơn (Bấm Nhận cuốc)
-router.post("/orders/:orderId/accept", verifyToken, shipper.accept);
-
-// Hoàn thành đơn
-router.post("/orders/:orderId/complete", verifyToken, shipper.complete);
-
+router.get(
+  "/orders",
+  verifyToken,
+  verifyShipper,
+  shipperController.viewAvailableOrders,
+);
+router.patch(
+  "/accept/:orderId",
+  verifyToken,
+  verifyShipper,
+  shipperController.accept,
+);
+router.patch(
+  "/complete/:orderId",
+  verifyToken,
+  verifyShipper,
+  shipperController.complete,
+);
+router.post("/register", verifyToken, shipperController.registerShipper);
+router.get(
+  "/wallet",
+  verifyToken,
+  verifyShipper, // Bọc qua trạm gác này cho an toàn
+  shipperController.getWallet,
+);
 module.exports = router;
