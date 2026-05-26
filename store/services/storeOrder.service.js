@@ -121,3 +121,35 @@ exports.getOrderDetail = async (storeId, orderId) => {
     throw error;
   }
 };
+
+exports.getOrderStats = async (storeId) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT status, COUNT(*) as count 
+       FROM orders 
+       WHERE store_id = ? 
+       GROUP BY status`,
+      [storeId]
+    );
+    const stats = {
+      pending: 0,
+      confirmed: 0,
+      delivering: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    rows.forEach((row) => {
+      if (stats.hasOwnProperty(row.status)) {
+        stats[row.status] = row.count;
+      }
+    });
+    return {
+      status: "success",
+      data: stats,
+    };
+  } catch (error) {
+    console.error("❌ Lỗi tại storeOrderService.getOrderStats:", error.message);
+    throw error;
+  }
+};
+

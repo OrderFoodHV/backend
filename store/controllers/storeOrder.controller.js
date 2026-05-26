@@ -89,10 +89,14 @@ exports.updateOrderStatus = async (req, res, next) => {
             [orderId],
           );
 
+          // Debug: xác nhận req.store chứa đúng dữ liệu khi emit
+          console.log("🏪 [DEBUG] req.store khi emit cho shipper:", JSON.stringify(req.store));
+
           // Phát radar thời gian thực bắn sang cho app Shipper hiển thị tiền và số cây
           global._io.to("shipper_global_room").emit("broadcast_new_order", {
             orderId: parseInt(orderId),
-            restaurant: "Food App Store",
+            restaurant: req.store.name,
+            restaurant_address: req.store.address || "Chưa cập nhật địa chỉ",
             distance: parseFloat(distance),
             shipping_fee: dynamicShipFee,
             total_price: Number(orderDetail.total_price),

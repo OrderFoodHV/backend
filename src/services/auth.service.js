@@ -44,7 +44,14 @@ exports.loginUser = async (email, password) => {
     throw error;
   }
 
-  // 3. Tạo Token
+  // 3. Kiểm tra trạng thái tài khoản (chỉ cho phép active)
+  if (user.status !== "active") {
+    const error = new Error("Tài khoản của sếp đã bị khóa hoặc ngừng hoạt động!");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // 4. Tạo Token
   const accessToken = jwt.sign(
     {
       id: user.id,

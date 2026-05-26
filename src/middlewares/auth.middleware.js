@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
   const token = req.header("Authorization");
 
   // BÙA CỨU NGUY DEMO: Nếu không có token hoặc dính chuỗi rỗng do reload app
@@ -13,6 +13,17 @@ exports.verifyToken = (req, res, next) => {
   try {
     const tokenParts = token.split(" ")[1] || token;
     const decoded = jwt.verify(tokenParts, process.env.JWT_SECRET || "secret");
+
+    // Kiểm tra xem tài khoản có bị khóa trong database không
+    const db = require("../../config/db");
+    const [users] = await db.query("SELECT status FROM users WHERE id = ?", [decoded.id]);
+    if (users && users.length > 0 && users[0].status !== "active") {
+      return res.status(403).json({
+        status: "fail",
+        message: "Tài khoản của sếp đã bị khóa hoặc ngừng hoạt động!",
+      });
+    }
+
     req.user = decoded;
     next();
   } catch (err) {

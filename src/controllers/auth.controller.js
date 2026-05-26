@@ -42,6 +42,13 @@ exports.login = catchAsync(async (req, res, next) => {
     password,
   );
 
+  // Tìm xem user này có cửa hàng nào không
+  const db = require("../../config/db");
+  const [stores] = await db.query("SELECT id, name, address, phone FROM stores WHERE owner_id = ?", [
+    user.id,
+  ]);
+  const currentStore = stores.length > 0 ? stores[0] : null;
+
   // Trả về form chuẩn
   res.status(200).json({
     status: "success",
@@ -50,10 +57,15 @@ exports.login = catchAsync(async (req, res, next) => {
       user: {
         id: user.id,
         name: user.name || user.user_name,
+        phone: user.phone || (currentStore ? currentStore.phone : ""),
         email: user.email,
         role: user.role,
-        is_shipper: user.is_shipper || 0, // Cờ này sẽ giúp frontend biết người dùng có phải là Shipper hay không để hiển thị giao diện phù hợp (VD: menu Shipper riêng)
-        is_seller: user.is_seller || 0, // Cờ này sẽ giúp frontend biết người dùng có phải là Seller hay không để hiển thị giao diện phù hợp (VD: menu Seller riêng)
+        is_shipper: user.is_shipper || 0,
+        is_seller: user.is_seller || 0,
+        storeId: currentStore ? currentStore.id : null,
+        storeName: currentStore ? currentStore.name : null,
+        storeAddress: currentStore ? currentStore.address : null,
+        storeStatus: currentStore ? currentStore.status : null,
       },
       access_token: accessToken,
       refresh_token: refreshToken,

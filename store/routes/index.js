@@ -19,6 +19,7 @@ router.use(verifyToken);
 
 // 🔥 ROUTE ĐĂNG KÝ QUÁN (Phải đặt ở đây, trước các route /:storeId)
 router.post("/register", storeProfileController.registerStore);
+router.put("/profile", storeProfileController.updateStoreProfile);
 
 // Middleware verifyStoreAccess đã được tích hợp vào từng sub-router
 

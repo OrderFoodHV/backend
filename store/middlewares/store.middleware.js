@@ -53,44 +53,29 @@ exports.verifyStoreAccess = async (req, res, next) => {
       req.params.storeId,
     );
     const userId = req.user.id;
-    const storeId = req.params.storeId || 1; // Mặc định xử lý store 1 nếu param truyền lên bị thiếu
 
-    if (!storeId) {
-      return fail(res, 400, "Thiếu storeId");
-    }
-
-    // 1. Thực hiện câu lệnh SQL quét kiểm tra quyền sở hữu thật trong Database
-    const [stores] = await db.query("SELECT * FROM stores WHERE id = ?", [
-      storeId,
+    // Bất chấp frontend gửi storeId là gì (thường bị hardcode = 1),
+    // Ta tự động lấy store thật của user này từ database
+    const [stores] = await db.query("SELECT * FROM stores WHERE owner_id = ?", [
+      userId,
     ]);
 
     if (stores.length === 0) {
       return fail(
         res,
         404,
-        "Không tìm thấy thông tin cửa hàng này trong hệ thống!",
+        "Không tìm thấy thông tin cửa hàng của bạn trong hệ thống!",
       );
     }
 
     const currentStore = stores[0];
 
-    // 2. 🌟 LUỒNG CHẠY THẬT CỨNG CỰA:
-    // Cho phép qua cửa nếu tài khoản là Chủ cửa hàng thật (owner_id khớp)
-    // HOẶC tài khoản test dùng chung có bật cờ người bán (is_seller === 1)
-    if (currentStore.owner_id === userId || req.user.is_seller === 1) {
-      console.log(
-        `✅ [Access Granted] Cho phép User #${userId} truy cập dữ liệu Store #${storeId}`,
-      );
-      req.store = currentStore;
-      return next();
-    }
-
-    // Nếu không thỏa mãn bất kỳ điều kiện nào mới chặn quyền
-    return fail(
-      res,
-      403,
-      "Sếp không có quyền truy cập vào dữ liệu của cửa hàng này!",
-    );
+    // Ghi đè storeId và req.store để các controller phía sau dùng đúng quán thật
+    req.params.storeId = currentStore.id;
+    req.store = currentStore;
+    
+    console.log(`✅ [Access Granted] Tự động map User #${userId} vào Store thật #${currentStore.id} (${currentStore.name})`);
+    return next();
   } catch (err) {
     next(err);
   }
