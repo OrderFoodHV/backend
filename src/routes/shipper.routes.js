@@ -23,6 +23,18 @@ router.patch(
   shipperController.complete,
 );
 router.post("/register", verifyToken, shipperController.registerShipper);
+router.patch(
+  "/status",
+  verifyToken,
+  verifyShipper,
+  shipperController.updateStatus,
+);
+router.put(
+  "/profile",
+  verifyToken,
+  verifyShipper,
+  shipperController.updateProfile,
+);
 router.get(
   "/wallet",
   verifyToken,

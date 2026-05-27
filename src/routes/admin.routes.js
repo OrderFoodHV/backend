@@ -22,6 +22,13 @@ router.put("/partners/:id",         auth, adminController.updatePartner);
 router.delete("/partners/:id",      auth, adminController.deletePartner);
 router.post("/partners/:id/approve",auth, adminController.approvePartner);
 
+// ── Shippers (Tài xế) ──
+router.get("/shippers",             auth, adminController.getShippers);
+router.post("/shippers/:id/approve",auth, adminController.approveShipper);
+router.post("/shippers/:id/block",  auth, adminController.blockShipper);
+router.post("/shippers/:id/unblock",auth, adminController.unblockShipper);
+router.delete("/shippers/:id",      auth, adminController.deleteShipper);
+
 // ── Categories (Danh mục) ──
 router.get("/categories",              auth, adminController.getCategories);
 router.post("/categories",             auth, adminController.createCategory);

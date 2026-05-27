@@ -17,7 +17,7 @@ exports.registerShipper = catchAsync(async (req, res) => {
     await db("shippers").where({ user_id: userId }).update({
       vehicle: vehicle,
       phone: phone,
-      status: "idle",
+      status: "pending",
     });
   } else {
     // 1. Lưu vào bảng shipper_profiles (hoặc bảng shippers)
@@ -25,11 +25,11 @@ exports.registerShipper = catchAsync(async (req, res) => {
       user_id: userId,
       vehicle: vehicle,
       phone: phone,
-      status: "idle",
+      status: "pending",
     });
   }
-  // 2. Bật công tắc is_shipper trong bảng users
-  await db("users").where({ id: userId }).update({ is_shipper: 1 });
+  // 2. Tắt công tắc is_shipper trong bảng users (chờ duyệt)
+  await db("users").where({ id: userId }).update({ is_shipper: 0 });
 
   res.status(201).json({ success: true, message: "Đăng ký thành công!" });
 });
@@ -173,4 +173,30 @@ exports.getWallet = catchAsync(async (req, res) => {
     success: true,
     data: { balance, todayEarn, todayOrders, history },
   });
+});
+
+exports.updateStatus = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { status } = req.body; // 'idle' or 'offline'
+
+  if (!["idle", "offline"].includes(status)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Trạng thái không hợp lệ!" });
+  }
+
+  await db("shippers").where({ user_id: userId }).update({ status });
+  res.status(200).json({ success: true, message: "Cập nhật trạng thái thành công!" });
+});
+
+exports.updateProfile = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { vehicle, phone } = req.body;
+
+  await db("shippers").where({ user_id: userId }).update({
+    vehicle,
+    phone
+  });
+
+  res.status(200).json({ success: true, message: "Cập nhật hồ sơ tài xế thành công!" });
 });

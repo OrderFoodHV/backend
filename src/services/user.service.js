@@ -7,6 +7,17 @@ exports.getProfile = async (userId) => {
     error.statusCode = 404;
     throw error;
   }
+  
+  // Lấy thêm trạng thái cửa hàng & tài xế
+  const db = require("../../config/db");
+  const [stores] = await db.query("SELECT status FROM stores WHERE owner_id = ?", [userId]);
+  const [shippers] = await db.query("SELECT status, phone, vehicle FROM shippers WHERE user_id = ?", [userId]);
+  
+  user.storeStatus = stores.length > 0 ? stores[0].status : null;
+  user.shipperStatus = shippers.length > 0 ? shippers[0].status : null;
+  user.vehicle = shippers.length > 0 ? shippers[0].vehicle : null;
+  user.shipperPhone = shippers.length > 0 ? shippers[0].phone : null;
+
   // Xóa mật khẩu trước khi trả về cho an toàn
   delete user.password;
   delete user.refresh_token;

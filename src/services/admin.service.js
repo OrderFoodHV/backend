@@ -136,6 +136,122 @@ exports.setPartnerStatus = async (id, status) => {
   }
 };
 
+// ── Shippers ──
+exports.getAllShippers = async () => {
+  const [rows] = await db.query(
+    `SELECT s.id, s.phone, s.vehicle, s.status, s.created_at,
+            u.name AS shipper_name, u.email AS shipper_email, u.id AS user_id
+     FROM shippers s
+     LEFT JOIN users u ON u.id = s.user_id
+     ORDER BY s.created_at DESC`
+  );
+  return rows;
+};
+
+exports.setShipperStatus = async (id, status) => {
+  if (status === "active" || status === "unblocked") {
+    // Kích hoạt/Mở khóa tài xế -> trạng thái 'offline' (ngoại tuyến mặc định)
+    await db.query("UPDATE shippers SET status = 'offline' WHERE id = ?", [id]);
+    
+    // Lấy user_id
+    const [shippers] = await db.query("SELECT user_id, phone, vehicle FROM shippers WHERE id = ?", [id]);
+    if (shippers && shippers.length > 0) {
+      const userId = shippers[0].user_id;
+      
+      // Cập nhật is_shipper = 1 trong bảng users
+      await db.query("UPDATE users SET is_shipper = 1 WHERE id = ?", [userId]);
+      
+      console.log(`🏍️ [Admin] Đã kích hoạt/mở khóa tài xế #${id}, cấp quyền is_shipper = 1 cho User #${userId}`);
+      
+      // Bắn socket real-time
+      if (global._io) {
+        global._io.to(`user_room_${userId}`).emit("shipper_approved", {
+          shipperId: id,
+          message: status === "unblocked" 
+            ? `Tài khoản đối tác tài xế của bạn đã được mở khóa!`
+            : `Chúc mừng! Yêu cầu làm đối tác tài xế của bạn đã được phê duyệt thành công.`,
+        });
+      }
+      
+      // Lưu thông báo hệ thống
+      const notiService = require("../../src/services/notifications.service");
+      await notiService.createNotification({
+        userId: userId,
+        role: "user",
+        title: status === "unblocked" ? "Mở khóa tài xế! 🎉" : "Đăng ký tài xế thành công! 🎉",
+        content: status === "unblocked"
+          ? `Tài khoản đối tác tài xế của bạn đã được Admin mở khóa.`
+          : `Chúc mừng bạn! Yêu cầu đăng ký làm tài xế với xe ${shippers[0].vehicle} đã được Admin duyệt thành công. Kênh tài xế của bạn đã sẵn sàng hoạt động.`,
+        type: "general",
+      }).catch(err => console.log("Lỗi tạo thông báo duyệt tài xế:", err));
+    }
+  } else if (status === "blocked") {
+    // Tạm khóa tài xế -> trạng thái 'blocked'
+    await db.query("UPDATE shippers SET status = 'blocked' WHERE id = ?", [id]);
+    
+    // Lấy user_id
+    const [shippers] = await db.query("SELECT user_id, vehicle FROM shippers WHERE id = ?", [id]);
+    if (shippers && shippers.length > 0) {
+      const userId = shippers[0].user_id;
+      
+      // Cập nhật is_shipper = 0 trong bảng users
+      await db.query("UPDATE users SET is_shipper = 0 WHERE id = ?", [userId]);
+      
+      console.log(`🔒 [Admin] Đã tạm khóa tài xế #${id}, thu hồi quyền is_shipper của User #${userId}`);
+      
+      // Bắn socket real-time
+      if (global._io) {
+        global._io.to(`user_room_${userId}`).emit("shipper_blocked", {
+          shipperId: id,
+          message: `Tài khoản đối tác tài xế của bạn đã bị Admin tạm khóa!`,
+        });
+      }
+      
+      // Lưu thông báo hệ thống
+      const notiService = require("../../src/services/notifications.service");
+      await notiService.createNotification({
+        userId: userId,
+        role: "user",
+        title: "Tài khoản tài xế đã bị tạm khóa 🔒",
+        content: `Tài khoản đối tác tài xế của bạn đã bị Admin tạm khóa. Mọi hoạt động giao nhận đơn tạm thời ngừng hoạt động.`,
+        type: "general",
+      }).catch(err => console.log("Lỗi tạo thông báo khóa tài xế:", err));
+    }
+  }
+};
+
+exports.deleteShipper = async (id) => {
+  const [shippers] = await db.query("SELECT user_id FROM shippers WHERE id = ?", [id]);
+  if (shippers && shippers.length > 0) {
+    const userId = shippers[0].user_id;
+    
+    // Xóa khỏi bảng shippers
+    await db.query("DELETE FROM shippers WHERE id = ?", [id]);
+    
+    // Cập nhật is_shipper = 0
+    await db.query("UPDATE users SET is_shipper = 0 WHERE id = ?", [userId]);
+    
+    console.log(`🗑️ [Admin] Đã xóa tài xế #${id}, hủy quyền is_shipper của User #${userId}`);
+    
+    // Bắn socket real-time
+    if (global._io) {
+      global._io.to(`user_room_${userId}`).emit("shipper_deleted", {
+        message: `Kênh tài xế của bạn đã bị từ chối/gỡ bỏ bởi Admin.`,
+      });
+    }
+    
+    // Lưu thông báo
+    const notiService = require("../../src/services/notifications.service");
+    await notiService.createNotification({
+      userId: userId,
+      role: "user",
+      title: "Yêu cầu tài xế bị từ chối ❌",
+      content: `Yêu cầu làm đối tác tài xế của bạn đã bị từ chối hoặc bị gỡ bởi Admin.`,
+      type: "general",
+    }).catch(err => console.log("Lỗi tạo thông báo xóa tài xế:", err));
+  }
+};
+
 // ── Categories ──
 exports.getAllCategories = async () => {
   const [rows] = await db.query(

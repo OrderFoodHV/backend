@@ -44,10 +44,16 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // Tìm xem user này có cửa hàng nào không
   const db = require("../../config/db");
-  const [stores] = await db.query("SELECT id, name, address, phone FROM stores WHERE owner_id = ?", [
+  const [stores] = await db.query("SELECT id, name, address, phone, status FROM stores WHERE owner_id = ?", [
     user.id,
   ]);
   const currentStore = stores.length > 0 ? stores[0] : null;
+
+  // Tìm xem user này có đăng ký shipper không
+  const [shippers] = await db.query("SELECT id, status, phone, vehicle FROM shippers WHERE user_id = ?", [
+    user.id,
+  ]);
+  const currentShipper = shippers.length > 0 ? shippers[0] : null;
 
   // Trả về form chuẩn
   res.status(200).json({
@@ -66,6 +72,9 @@ exports.login = catchAsync(async (req, res, next) => {
         storeName: currentStore ? currentStore.name : null,
         storeAddress: currentStore ? currentStore.address : null,
         storeStatus: currentStore ? currentStore.status : null,
+        shipperStatus: currentShipper ? currentShipper.status : null,
+        vehicle: currentShipper ? currentShipper.vehicle : null,
+        shipperPhone: currentShipper ? currentShipper.phone : null,
       },
       access_token: accessToken,
       refresh_token: refreshToken,

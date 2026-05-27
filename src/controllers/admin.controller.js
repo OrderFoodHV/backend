@@ -57,6 +57,32 @@ exports.approvePartner = catchAsync(async (req, res) => {
   return ok(res, null, "Đã duyệt đối tác!");
 });
 
+// ── Shippers ──
+exports.getShippers = catchAsync(async (req, res) => {
+  const shippers = await adminService.getAllShippers();
+  return ok(res, shippers);
+});
+
+exports.approveShipper = catchAsync(async (req, res) => {
+  await adminService.setShipperStatus(req.params.id, "active");
+  return ok(res, null, "Đã duyệt tài xế!");
+});
+
+exports.blockShipper = catchAsync(async (req, res) => {
+  await adminService.setShipperStatus(req.params.id, "blocked");
+  return ok(res, null, "Đã tạm khóa tài xế!");
+});
+
+exports.unblockShipper = catchAsync(async (req, res) => {
+  await adminService.setShipperStatus(req.params.id, "unblocked");
+  return ok(res, null, "Đã mở khóa tài xế!");
+});
+
+exports.deleteShipper = catchAsync(async (req, res) => {
+  await adminService.deleteShipper(req.params.id);
+  return ok(res, null, "Đã xóa tài xế!");
+});
+
 // ── Categories ──
 exports.getCategories = catchAsync(async (req, res) => {
   const categories = await adminService.getAllCategories();

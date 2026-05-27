@@ -556,7 +556,7 @@ CREATE TABLE `shippers` (
   `user_id` int(11) NOT NULL,
   `phone` varchar(50) DEFAULT NULL,
   `vehicle` varchar(100) DEFAULT NULL,
-  `status` enum('idle','delivering','offline') DEFAULT 'idle',
+  `status` enum('pending','idle','delivering','offline','blocked') DEFAULT 'pending',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -570,7 +570,7 @@ CREATE TABLE `shippers` (
 --
 
 /*!40000 ALTER TABLE `shippers` DISABLE KEYS */;
-INSERT INTO `shippers` VALUES (1,1,'0567894326','honda wave, 29h5 - 298.48','idle','2026-05-24 15:03:19','2026-05-25 00:42:49');
+INSERT INTO `shippers` VALUES (1,1,'0567894326','honda wave, 29h5 - 298.48','offline','2026-05-24 15:03:19','2026-05-25 00:42:49');
 /*!40000 ALTER TABLE `shippers` ENABLE KEYS */;
 
 --
