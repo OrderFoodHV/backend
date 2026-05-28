@@ -19,3 +19,15 @@ exports.getOne = catchAsync(async (req, res, next) => {
     data: product,
   });
 });
+
+const db = require("../../config/db");
+
+exports.getCategories = catchAsync(async (req, res, next) => {
+  const [rows] = await db.query(
+    "SELECT * FROM categories WHERE status = 'active' ORDER BY created_at DESC"
+  );
+  res.status(200).json({
+    status: "success",
+    data: rows,
+  });
+});

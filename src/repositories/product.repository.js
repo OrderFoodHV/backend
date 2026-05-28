@@ -2,10 +2,16 @@
 const db = require("../../config/db");
 
 exports.findAll = async () => {
-  // Sửa: Bảng mới dùng cột 'available' BOOLEAN thay vì 'status'
-  return await db("products").where("available", true).select("*");
+  return await db("products as p")
+    .join("stores as s", "p.store_id", "s.id")
+    .where("p.available", true)
+    .select("p.*", "s.name as store_name", "s.address as store_address");
 };
 
 exports.findById = async (id) => {
-  return await db("products").where({ id }).first();
+  return await db("products as p")
+    .join("stores as s", "p.store_id", "s.id")
+    .where("p.id", id)
+    .select("p.*", "s.name as store_name", "s.address as store_address")
+    .first();
 };

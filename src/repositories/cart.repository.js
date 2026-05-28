@@ -35,7 +35,16 @@ exports.getCartDetails = async (user_id) => {
       "p.name",
       "p.image",
       "p.price",
+      "p.store_id", // Thêm store_id vào cart details để kiểm tra trùng quán
       "ci.quantity",
       db.raw("CAST(p.price * ci.quantity AS DECIMAL(10,2)) as total"),
     );
+};
+
+exports.clearCartItems = async (cart_id) => {
+  return await db("cart_items").where({ cart_id }).delete();
+};
+
+exports.deleteCartItem = async (cart_id, product_id) => {
+  return await db("cart_items").where({ cart_id, product_id }).delete();
 };

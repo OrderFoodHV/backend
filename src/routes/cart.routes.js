@@ -5,5 +5,7 @@ const { verifyToken } = require("../middlewares/auth.middleware");
 // TẤT CẢ api giỏ hàng đều phải đi qua bảo vệ (bắt buộc có thẻ Token)
 router.post("/add", verifyToken, cart.addToCart);
 router.get("/", verifyToken, cart.getCart);
+router.delete("/clear", verifyToken, cart.clearCart);
+router.delete("/remove", verifyToken, cart.removeFromCart);
 
 module.exports = router;

@@ -20,17 +20,20 @@ exports.createNotification = async ({
   type,
 }) => {
   try {
-    // 1. Ghi vết vào Database bảng notifications để lưu lịch sử
-    const [insertedId] = await db("notifications").insert({
-      user_id: userId || null,
-      store_id: storeId || null,
-      role: role, // 'user', 'store', hoặc 'shipper'
-      title,
-      content,
-      type, // 'new_order', 'order_status', 'wallet'
-      is_read: 0,
-      created_at: new Date(),
-    });
+    let insertedId = null;
+
+    // Only insert to notifications table if userId is present (as it references users table)
+    if (userId) {
+      const [id] = await db("notifications").insert({
+        user_id: userId,
+        title,
+        message: content, // Map content to DB column name 'message'
+        type: ['order', 'promotion', 'reward', 'general'].includes(type) ? type : 'general',
+        is_read: 0,
+        created_at: new Date(),
+      });
+      insertedId = id;
+    }
 
     const notiPayload = {
       id: insertedId,

@@ -29,3 +29,22 @@ exports.addToCart = async (userId, productId, quantity) => {
 exports.getCart = async (userId) => {
   return await cartRepo.getCartDetails(userId);
 };
+
+exports.clearCart = async (userId) => {
+  const cart = await cartRepo.findCartByUserId(userId);
+  if (cart) {
+    await cartRepo.clearCartItems(cart.id);
+  }
+  return "Đã xóa toàn bộ giỏ hàng!";
+};
+
+exports.removeFromCart = async (userId, productId) => {
+  const cart = await cartRepo.findCartByUserId(userId);
+  if (cart) {
+    await cartRepo.deleteCartItem(cart.id, productId);
+    return "Đã xóa món ăn khỏi giỏ hàng!";
+  }
+  const error = new Error("Không tìm thấy giỏ hàng!");
+  error.statusCode = 404;
+  throw error;
+};

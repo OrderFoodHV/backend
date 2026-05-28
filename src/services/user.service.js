@@ -25,12 +25,13 @@ exports.getProfile = async (userId) => {
 };
 
 exports.updateProfile = async (userId, data) => {
-  // Chỉ cho phép đổi tên và số điện thoại ở đây thôi
-  const { name, phone } = data;
+  // Chỉ cho phép đổi tên, số điện thoại và ảnh đại diện
+  const { name, phone, avatar } = data;
   const updateData = {};
 
   if (name) updateData.name = name;
   if (phone) updateData.phone = phone;
+  if (avatar !== undefined) updateData.avatar = avatar;
 
   if (Object.keys(updateData).length === 0) {
     const error = new Error("Không có thông tin nào để cập nhật!");

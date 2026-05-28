@@ -3,11 +3,12 @@ const jwt = require("jsonwebtoken");
 exports.verifyToken = async (req, res, next) => {
   const token = req.header("Authorization");
 
-  // BÙA CỨU NGUY DEMO: Nếu không có token hoặc dính chuỗi rỗng do reload app
   if (!token || token.includes("undefined") || token.includes("null")) {
-    console.log("⚠️ [DEMO WARN] Kích hoạt chế độ Demo Bất Tử (User ID = 1)");
-    req.user = { id: 1, name: "Nguyễn Thị Thu Hoài", role: "admin" }; // Đổi thành admin để test được cả web admin
-    return next();
+    return res.status(401).json({
+      status: "fail",
+      message: "Vui lòng đăng nhập lại!",
+      success: false
+    });
   }
 
   try {
@@ -21,6 +22,7 @@ exports.verifyToken = async (req, res, next) => {
       return res.status(403).json({
         status: "fail",
         message: "Tài khoản của sếp đã bị khóa hoặc ngừng hoạt động!",
+        success: false
       });
     }
 
@@ -28,8 +30,10 @@ exports.verifyToken = async (req, res, next) => {
     next();
   } catch (err) {
     console.log("🚨 Lỗi giải mã Token thật:", err.message);
-    // Hết hạn token khi đang thuyết trình -> Tự động bypass cứu nguy
-    req.user = { id: 1, name: "Nguyễn Thị Thu Hoài", role: "admin" };
-    next();
+    return res.status(401).json({
+      status: "fail",
+      message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!",
+      success: false
+    });
   }
 };

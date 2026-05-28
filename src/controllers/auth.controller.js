@@ -75,6 +75,7 @@ exports.login = catchAsync(async (req, res, next) => {
         shipperStatus: currentShipper ? currentShipper.status : null,
         vehicle: currentShipper ? currentShipper.vehicle : null,
         shipperPhone: currentShipper ? currentShipper.phone : null,
+        avatar: user.avatar || null,
       },
       access_token: accessToken,
       refresh_token: refreshToken,
