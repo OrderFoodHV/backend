@@ -6,6 +6,9 @@ exports.createOrderTransaction = async (
   cartItems,
   shippingAddress,
   totalAmount,
+  shippingFee,
+  serviceFee,
+  note,
 ) => {
   return await db.transaction(async (trx) => {
     // 1. Insert và lấy ID chuẩn nhất
@@ -14,6 +17,9 @@ exports.createOrderTransaction = async (
       store_id: storeId, // Đã thêm storeId
       address: shippingAddress,
       total_price: totalAmount,
+      shipping_fee: shippingFee || 0,
+      service_fee: serviceFee || 0,
+      note: note || null,
       status: "pending",
       created_at: new Date(),
     });

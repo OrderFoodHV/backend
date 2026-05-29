@@ -117,18 +117,23 @@ exports.getFees = catchAsync(async (req, res) => {
 });
 
 exports.updateServiceFee = catchAsync(async (req, res) => {
-  await adminService.updateFeeByType("service", req.body);
+  await adminService.updateFeeByType("service_fee", req.body);
   return ok(res, null, "Đã cập nhật phí dịch vụ!");
 });
 
 exports.updateShippingFee = catchAsync(async (req, res) => {
-  await adminService.updateFeeByType("shipping", req.body);
+  await adminService.updateFeeByType("shipping_fee", req.body);
   return ok(res, null, "Đã cập nhật phí giao hàng!");
 });
 
 exports.createFee = catchAsync(async (req, res) => {
   const id = await adminService.createFee(req.body);
   return ok(res, { id }, "Đã tạo cấu hình phí mới!");
+});
+
+exports.updateFee = catchAsync(async (req, res) => {
+  await adminService.updateFeeById(req.params.id, req.body);
+  return ok(res, null, "Đã cập nhật cấu hình phí!");
 });
 
 exports.setFeeStatus = catchAsync(async (req, res) => {

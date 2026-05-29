@@ -41,6 +41,7 @@ router.get("/fees",                 auth, adminController.getFees);
 router.put("/fees/service",         auth, adminController.updateServiceFee);
 router.put("/fees/shipping",        auth, adminController.updateShippingFee);
 router.post("/fees",                auth, adminController.createFee);
+router.put("/fees/:id",             auth, adminController.updateFee);
 router.put("/fees/:id/status",      auth, adminController.setFeeStatus);
 router.delete("/fees/:id",          auth, adminController.deleteFee);
 // Giữ backward compat với route cũ

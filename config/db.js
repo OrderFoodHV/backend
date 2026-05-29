@@ -12,7 +12,20 @@ const db = knex({
 });
 
 db.raw("SELECT 1")
-  .then(() => console.log("✅ Knex đã kết nối MySQL thành công!"))
+  .then(async () => {
+    console.log("✅ Knex đã kết nối MySQL thành công!");
+    try {
+      const hasServiceFee = await db.schema.hasColumn("orders", "service_fee");
+      if (!hasServiceFee) {
+        await db.schema.table("orders", (table) => {
+          table.decimal("service_fee", 10, 2).defaultTo(0.00);
+        });
+        console.log("🛠️  Tự động thêm cột 'service_fee' vào bảng 'orders' thành công!");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi tự động nâng cấp cấu trúc bảng orders:", err);
+    }
+  })
   .catch((err) => console.log("❌ Lỗi kết nối Knex:", err));
 
 // 🌟 BÙA HỘ MỆNH TINH KHIẾT: Trả về nguyên bản mảng kép [rows, fields]

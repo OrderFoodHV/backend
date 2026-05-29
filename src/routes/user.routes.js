@@ -14,5 +14,11 @@ router.delete("/delete-account", verifyToken, user.deleteMe);
 router.get("/addresses", verifyToken, user.getAddresses);
 router.post("/addresses", verifyToken, user.addAddress);
 router.put("/addresses/:id", verifyToken, user.updateAddress);
+router.put("/addresses/:id/default", verifyToken, user.setDefaultAddress);
+
+// Quản lý sản phẩm yêu thích
+router.get("/favorites", verifyToken, user.getFavorites);
+router.post("/favorites", verifyToken, user.addFavorite);
+router.delete("/favorites/:productId", verifyToken, user.removeFavorite);
 
 module.exports = router;

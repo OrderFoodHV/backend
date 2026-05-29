@@ -177,6 +177,9 @@ CREATE TABLE `fee_settings` (
   `status` enum('active','inactive') DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `calculation_type` varchar(20) DEFAULT 'fixed',
+  `condition_type` varchar(20) DEFAULT 'none',
+  `condition_value` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -186,7 +189,7 @@ CREATE TABLE `fee_settings` (
 --
 
 /*!40000 ALTER TABLE `fee_settings` DISABLE KEYS */;
-INSERT INTO `fee_settings` VALUES (1,'service_fee',10.00,'Phí dịch vụ platform (10%)','active','2026-05-21 08:25:22','2026-05-21 08:25:22'),(2,'shipping_fee',15.00,'Phí vận chuyển mặc định','active','2026-05-21 08:25:22','2026-05-21 08:25:22');
+INSERT INTO `fee_settings` (`id`, `fee_type`, `fee_value`, `fee_description`, `status`, `created_at`, `updated_at`, `calculation_type`, `condition_type`, `condition_value`) VALUES (1,'service_fee',10.00,'Phí dịch vụ platform (10%)','active','2026-05-21 08:25:22','2026-05-21 08:25:22','fixed','none',NULL),(2,'shipping_fee',15.00,'Phí vận chuyển mặc định','active','2026-05-21 08:25:22','2026-05-21 08:25:22','fixed','none',NULL);
 /*!40000 ALTER TABLE `fee_settings` ENABLE KEYS */;
 
 --
@@ -292,6 +295,10 @@ CREATE TABLE `orders` (
   `address` text DEFAULT NULL,
   `voucher_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `shipping_fee` decimal(10,2) DEFAULT 0.00,
+  `service_fee` decimal(10,2) DEFAULT 0.00,
+  `distance` decimal(10,2) DEFAULT NULL,
+  `note` text DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `voucher_id` (`voucher_id`),
   KEY `shipper_id` (`shipper_id`),
@@ -310,7 +317,7 @@ CREATE TABLE `orders` (
 --
 
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
-INSERT INTO `orders` VALUES (1,2,NULL,NULL,50000.00,'pending','unpaid','1/2',NULL,'2026-05-21 08:27:35'),(2,2,NULL,NULL,25000.00,'cancelled','unpaid','jdhf',NULL,'2026-05-21 09:05:21'),(29,2,1,NULL,15000.00,'cancelled','unpaid','33',NULL,'2026-05-24 12:03:57'),(30,2,1,NULL,20000.00,'confirmed','unpaid','33 đại la',NULL,'2026-05-25 02:10:57'),(31,2,1,NULL,15000.00,'','unpaid','36 đại la',NULL,'2026-05-25 09:16:44'),(32,2,1,NULL,30000.00,'delivering','unpaid','22 bạch mai',NULL,'2026-05-25 09:35:44'),(33,2,1,NULL,40000.00,'confirmed','unpaid','1 giải phóng',NULL,'2026-05-25 10:29:27'),(34,2,1,NULL,60000.00,'confirmed','unpaid','45 giải phóng',NULL,'2026-05-25 10:52:02'),(35,2,1,NULL,45000.00,'','unpaid','33 haha',NULL,'2026-05-25 10:56:49'),(36,2,1,NULL,40000.00,'','unpaid','44 đại la',NULL,'2026-05-25 11:16:14'),(37,2,1,NULL,35000.00,'','unpaid','3344',NULL,'2026-05-25 11:20:53'),(38,2,1,NULL,45000.00,'cancelled','unpaid','354 tc',NULL,'2026-05-25 11:40:40'),(39,2,1,NULL,10000.00,'','unpaid','3₫3!!4',NULL,'2026-05-25 11:45:20'),(40,2,1,NULL,45000.00,'','unpaid','867369',NULL,'2026-05-25 11:55:02'),(41,2,1,NULL,35000.00,'','unpaid','sjndbd',NULL,'2026-05-25 12:07:19'),(42,1,1,NULL,35000.00,'','unpaid','678',NULL,'2026-05-25 12:14:44');
+INSERT INTO `orders` (`id`, `user_id`, `store_id`, `shipper_id`, `total_price`, `status`, `payment_status`, `address`, `voucher_id`, `created_at`) VALUES (1,2,NULL,NULL,50000.00,'pending','unpaid','1/2',NULL,'2026-05-21 08:27:35'),(2,2,NULL,NULL,25000.00,'cancelled','unpaid','jdhf',NULL,'2026-05-21 09:05:21'),(29,2,1,NULL,15000.00,'cancelled','unpaid','33',NULL,'2026-05-24 12:03:57'),(30,2,1,NULL,20000.00,'confirmed','unpaid','33 đại la',NULL,'2026-05-25 02:10:57'),(31,2,1,NULL,15000.00,'','unpaid','36 đại la',NULL,'2026-05-25 09:16:44'),(32,2,1,NULL,30000.00,'delivering','unpaid','22 bạch mai',NULL,'2026-05-25 09:35:44'),(33,2,1,NULL,40000.00,'confirmed','unpaid','1 giải phóng',NULL,'2026-05-25 10:29:27'),(34,2,1,NULL,60000.00,'confirmed','unpaid','45 giải phóng',NULL,'2026-05-25 10:52:02'),(35,2,1,NULL,45000.00,'','unpaid','33 haha',NULL,'2026-05-25 10:56:49'),(36,2,1,NULL,40000.00,'','unpaid','44 đại la',NULL,'2026-05-25 11:16:14'),(37,2,1,NULL,35000.00,'','unpaid','3344',NULL,'2026-05-25 11:20:53'),(38,2,1,NULL,45000.00,'cancelled','unpaid','354 tc',NULL,'2026-05-25 11:40:40'),(39,2,1,NULL,10000.00,'','unpaid','3₫3!!4',NULL,'2026-05-25 11:45:20'),(40,2,1,NULL,45000.00,'','unpaid','867369',NULL,'2026-05-25 11:55:02'),(41,2,1,NULL,35000.00,'','unpaid','sjndbd',NULL,'2026-05-25 12:07:19'),(42,1,1,NULL,35000.00,'','unpaid','678',NULL,'2026-05-25 12:14:44');
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 
 --

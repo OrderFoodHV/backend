@@ -6,6 +6,8 @@ router.get("/", product.getAll);
 
 router.get("/categories", product.getCategories);
 
+router.get("/fees", product.getFees);
+
 // Lấy chi tiết 1 món (VD: /products/1)
 router.get("/:id", product.getOne);
 

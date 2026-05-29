@@ -20,6 +20,12 @@ exports.incrementItemQty = async (cart_id, product_id, quantity) => {
     .increment("quantity", quantity);
 };
 
+exports.updateItemQty = async (cart_id, product_id, quantity) => {
+  return await db("cart_items")
+    .where({ cart_id, product_id })
+    .update({ quantity });
+};
+
 exports.addCartItem = async (cart_id, product_id, quantity) => {
   return await db("cart_items").insert({ cart_id, product_id, quantity });
 };

@@ -273,7 +273,14 @@ exports.updateCategory = async (id, data) => {
   const { name, description, image, status, parent_id } = data;
   await db.query(
     "UPDATE categories SET name = ?, description = ?, image = ?, status = ?, parent_id = ? WHERE id = ?",
-    [name, description, image, status, parent_id, id]
+    [
+      name,
+      description === undefined ? null : description,
+      image === undefined ? null : image,
+      status === undefined ? "active" : status,
+      parent_id === undefined ? null : parent_id,
+      id,
+    ]
   );
 };
 
@@ -300,12 +307,20 @@ exports.updateFeeByType = async (type, data) => {
 };
 
 exports.createFee = async (data) => {
-  const { fee_type, fee_value, fee_description, status } = data;
+  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value } = data;
   const [result] = await db.query(
-    "INSERT INTO fee_settings (fee_type, fee_value, fee_description, status) VALUES (?, ?, ?, ?)",
-    [fee_type, fee_value, fee_description || null, status || "active"]
+    "INSERT INTO fee_settings (fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [fee_type, fee_value, fee_description || null, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null]
   );
   return result.insertId;
+};
+
+exports.updateFeeById = async (id, data) => {
+  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value } = data;
+  await db.query(
+    "UPDATE fee_settings SET fee_type = ?, fee_value = ?, fee_description = ?, status = ?, calculation_type = ?, condition_type = ?, condition_value = ?, updated_at = NOW() WHERE id = ?",
+    [fee_type, fee_value, fee_description, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null, id]
+  );
 };
 
 exports.setFeeStatus = async (id, status) => {

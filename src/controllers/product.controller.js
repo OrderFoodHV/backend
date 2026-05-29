@@ -31,3 +31,13 @@ exports.getCategories = catchAsync(async (req, res, next) => {
     data: rows,
   });
 });
+
+exports.getFees = catchAsync(async (req, res, next) => {
+  const [rows] = await db.query(
+    "SELECT * FROM fee_settings WHERE status = 'active'"
+  );
+  res.status(200).json({
+    status: "success",
+    data: rows,
+  });
+});

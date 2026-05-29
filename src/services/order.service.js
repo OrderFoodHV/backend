@@ -7,6 +7,9 @@ exports.checkout = async (
   shippingAddress,
   itemsFromFE,
   totalPriceFE,
+  shippingFee,
+  serviceFee,
+  note,
 ) => {
   let cartItems = Array.isArray(itemsFromFE) ? itemsFromFE : [];
   if (cartItems.length === 0) {
@@ -34,6 +37,9 @@ exports.checkout = async (
     cartItems,
     shippingAddress,
     finalTotal,
+    shippingFee,
+    serviceFee || 0,
+    note,
   );
 
   return { orderId, finalStoreId }; // Trả ra ngoài cả 2 thông tin để Controller bắn Socket
