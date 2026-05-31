@@ -48,7 +48,7 @@ exports.accept = catchAsync(async (req, res) => {
 
   const shipper = await db("shippers")
     .join("users", "users.id", "=", "shippers.user_id")
-    .select("users.user_name", "shippers.vehicle", "shippers.phone")
+    .select("users.name as user_name", "shippers.vehicle", "shippers.phone", "users.avatar")
     .where("shippers.user_id", userId)
     .first();
 
@@ -59,10 +59,10 @@ exports.accept = catchAsync(async (req, res) => {
     global._io.to(`order_room_${orderId}`).emit("order_status_updated", {
       status: "delivering", // Nhảy luôn sang điểm vòng tròn số 3 (Đang giao)
       driver: {
-        name: shipperInfo.name || "Tài xế InOrder",
-        avatar: shipperInfo.avatar || "https://i.imgur.com/6VBx3io.png",
-        vehicle: shipperInfo.vehicle || "Wave Alpha",
-        licensePlate: shipperInfo.license_plate || "29H1 - 999.99",
+        name: (shipper ? shipper.user_name : null) || "Tài xế InOrder",
+        avatar: (shipper ? shipper.avatar : null) || "https://i.imgur.com/6VBx3io.png",
+        vehicle: (shipper ? shipper.vehicle : null) || "Wave Alpha",
+        licensePlate: "29H1 - 999.99",
       },
     });
 
@@ -109,12 +109,14 @@ exports.complete = catchAsync(async (req, res) => {
         type: "order_status",
       });
 
+      const earnAmount = Number(order.shipping_fee) || 15000;
+
       // Thông báo cộng tiền vào ví cho Tài xế
       await notiService.createNotification({
         userId: userId, // ID tài khoản tài xế
         role: "shipper",
         title: "Thu nhập được cộng! 💰",
-        content: `Bạn đã nhận được +15.000đ từ việc hoàn thành đơn hàng #${orderId}.`,
+        content: `Bạn đã nhận được +${earnAmount.toLocaleString("vi-VN")}đ từ việc hoàn thành đơn hàng #${orderId}.`,
         type: "wallet",
       });
     }
@@ -134,9 +136,8 @@ exports.getWallet = catchAsync(async (req, res) => {
       .json({ success: false, message: "Không tìm thấy hồ sơ tài xế!" });
   }
 
-  const EARN_PER_ORDER = 15000;
   const completedOrders = await db("orders")
-    .select("id", "total_price", "created_at")
+    .select("id", "total_price", "shipping_fee", "created_at")
     .where({ shipper_id: shipper.id, status: "completed" })
     .orderBy("created_at", "desc");
 
@@ -150,15 +151,16 @@ exports.getWallet = catchAsync(async (req, res) => {
 
   completedOrders.forEach((order) => {
     const orderDate = new Date(order.created_at);
-    balance += EARN_PER_ORDER;
+    const earnAmount = Number(order.shipping_fee) || 15000;
+    balance += earnAmount;
     if (orderDate >= startOfToday) {
-      todayEarn += EARN_PER_ORDER;
+      todayEarn += earnAmount;
       todayOrders += 1;
     }
     history.push({
       id: order.id,
       type: "earn",
-      amount: EARN_PER_ORDER,
+      amount: earnAmount,
       title: `Giao thành công đơn #${order.id}`,
       time: orderDate.toLocaleTimeString("vi-VN", {
         hour: "2-digit",
@@ -199,4 +201,21 @@ exports.updateProfile = catchAsync(async (req, res) => {
   });
 
   res.status(200).json({ success: true, message: "Cập nhật hồ sơ tài xế thành công!" });
+});
+
+exports.updateLocation = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { latitude, longitude } = req.body;
+
+  if (latitude === undefined || longitude === undefined) {
+    return res.status(400).json({ success: false, message: "Thiếu vĩ độ hoặc kinh độ!" });
+  }
+
+  await db("shippers").where({ user_id: userId }).update({
+    latitude: parseFloat(latitude),
+    longitude: parseFloat(longitude),
+    updated_at: db.fn.now()
+  });
+
+  res.status(200).json({ success: true, message: "Cập nhật vị trí GPS thành công!" });
 });

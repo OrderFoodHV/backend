@@ -22,8 +22,35 @@ db.raw("SELECT 1")
         });
         console.log("🛠️  Tự động thêm cột 'service_fee' vào bảng 'orders' thành công!");
       }
+
+      const hasTitle = await db.schema.hasColumn("user_address", "title");
+      if (!hasTitle) {
+        await db.schema.table("user_address", (table) => {
+          table.string("title", 255).defaultTo("Địa chỉ");
+        });
+        console.log("🛠️  Tự động thêm cột 'title' vào bảng 'user_address' thành công!");
+      }
+
+      // 🌟 THÊM: Tự động thêm latitude/longitude cho các bảng
+      const tablesToCheck = ["user_address", "stores", "shippers"];
+      for (const tableName of tablesToCheck) {
+        const hasLat = await db.schema.hasColumn(tableName, "latitude");
+        if (!hasLat) {
+          await db.schema.table(tableName, (table) => {
+            table.double("latitude").nullable();
+          });
+          console.log(`🛠️  Tự động thêm cột 'latitude' vào bảng '${tableName}' thành công!`);
+        }
+        const hasLng = await db.schema.hasColumn(tableName, "longitude");
+        if (!hasLng) {
+          await db.schema.table(tableName, (table) => {
+            table.double("longitude").nullable();
+          });
+          console.log(`🛠️  Tự động thêm cột 'longitude' vào bảng '${tableName}' thành công!`);
+        }
+      }
     } catch (err) {
-      console.error("❌ Lỗi tự động nâng cấp cấu trúc bảng orders:", err);
+      console.error("❌ Lỗi tự động nâng cấp cấu trúc bảng:", err);
     }
   })
   .catch((err) => console.log("❌ Lỗi kết nối Knex:", err));

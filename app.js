@@ -35,6 +35,22 @@ global._io.on("connection", (socket) => {
   // 🌟 THÊM: Tài xế bật Trực tuyến thì cho vào phòng chung của Shipper để hứng đơn mới
   socket.on("register_shipper", () => socket.join("shipper_global_room"));
 
+  // Nhận tọa độ cập nhật từ Shipper
+  socket.on("update_shipper_location", async (data) => {
+    const db = require("./config/db");
+    const { userId, latitude, longitude } = data;
+    if (userId && latitude && longitude) {
+      await db("shippers")
+        .where({ user_id: userId })
+        .update({
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          updated_at: db.fn.now()
+        })
+        .catch(err => console.error("Lỗi cập nhật vị trí shipper qua socket:", err));
+    }
+  });
+
   // 🌟 THÊM: Khi Khách/Quán/Xế mở màn hình theo dõi đơn, bắt buộc phải vào phòng riêng của đơn đó
   socket.on("join_order_room", (data) => {
     socket.join(`order_room_${data.orderId}`);

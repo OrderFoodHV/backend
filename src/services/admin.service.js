@@ -63,6 +63,15 @@ exports.deletePartner = async (id) => {
     const ownerId = stores[0].owner_id;
     const storeName = stores[0].name;
 
+    // A. Nullify product_id in order_items for all products of this store to avoid FK constraint fails
+    await db.query(
+      "UPDATE order_items SET product_id = NULL WHERE product_id IN (SELECT id FROM products WHERE store_id = ?)",
+      [id]
+    );
+
+    // B. Nullify store_id in orders for this store
+    await db.query("UPDATE orders SET store_id = NULL WHERE store_id = ?", [id]);
+
     // 2. Xóa toàn bộ sản phẩm (thực đơn) của quán đó
     await db.query("DELETE FROM products WHERE store_id = ?", [id]);
 
@@ -224,6 +233,9 @@ exports.deleteShipper = async (id) => {
   const [shippers] = await db.query("SELECT user_id FROM shippers WHERE id = ?", [id]);
   if (shippers && shippers.length > 0) {
     const userId = shippers[0].user_id;
+
+    // A. Nullify shipper_id in orders for this driver to avoid FK constraint fails
+    await db.query("UPDATE orders SET shipper_id = NULL WHERE shipper_id = ?", [id]);
     
     // Xóa khỏi bảng shippers
     await db.query("DELETE FROM shippers WHERE id = ?", [id]);

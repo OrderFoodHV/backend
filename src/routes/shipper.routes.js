@@ -29,6 +29,12 @@ router.patch(
   verifyShipper,
   shipperController.updateStatus,
 );
+router.patch(
+  "/location",
+  verifyToken,
+  verifyShipper,
+  shipperController.updateLocation,
+);
 router.put(
   "/profile",
   verifyToken,

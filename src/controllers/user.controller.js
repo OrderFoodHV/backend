@@ -35,36 +35,60 @@ const db = require("../../config/db");
 exports.getAddresses = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const [rows] = await db.query(
-    "SELECT id, address as detail, 'Địa chỉ' as title, is_default FROM user_address WHERE user_id = ? ORDER BY is_default DESC, id DESC",
+    "SELECT id, address as detail, title, is_default, latitude, longitude FROM user_address WHERE user_id = ? ORDER BY is_default DESC, id DESC",
     [userId]
   );
   res.status(200).json({ status: "success", data: rows });
 });
 
+const { geocodeAddress } = require("../utils/distanceHelper");
+
 exports.addAddress = catchAsync(async (req, res) => {
   const userId = req.user.id;
-  const { address } = req.body;
+  const { address, title, latitude: bodyLat, longitude: bodyLng } = req.body;
+
+  let latitude = bodyLat !== undefined ? bodyLat : null;
+  let longitude = bodyLng !== undefined ? bodyLng : null;
+
+  if (latitude === null || longitude === null) {
+    const coords = await geocodeAddress(address);
+    if (coords) {
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    }
+  }
 
   const [result] = await db.query(
-    "INSERT INTO user_address (user_id, address) VALUES (?, ?)",
-    [userId, address]
+    "INSERT INTO user_address (user_id, address, title, latitude, longitude) VALUES (?, ?, ?, ?, ?)",
+    [userId, address, title || "Địa chỉ", latitude, longitude]
   );
 
   res.status(201).json({
     status: "success",
     message: "Thêm địa chỉ thành công!",
-    data: { id: result.insertId, detail: address, title: "Địa chỉ", is_default: 0 }
+    data: { id: result.insertId, detail: address, title: title || "Địa chỉ", is_default: 0, latitude, longitude }
   });
 });
 
 exports.updateAddress = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  const { address } = req.body;
+  const { address, title, latitude: bodyLat, longitude: bodyLng } = req.body;
+
+  let latitude = bodyLat !== undefined ? bodyLat : null;
+  let longitude = bodyLng !== undefined ? bodyLng : null;
+
+  if (latitude === null || longitude === null) {
+    const coords = await geocodeAddress(address);
+    if (coords) {
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    }
+  }
 
   await db.query(
-    "UPDATE user_address SET address = ? WHERE id = ? AND user_id = ?",
-    [address, id, userId]
+    "UPDATE user_address SET address = ?, title = ?, latitude = ?, longitude = ? WHERE id = ? AND user_id = ?",
+    [address, title || "Địa chỉ", latitude, longitude, id, userId]
   );
 
   res.status(200).json({ status: "success", message: "Cập nhật địa chỉ thành công!" });

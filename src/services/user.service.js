@@ -10,10 +10,15 @@ exports.getProfile = async (userId) => {
   
   // Lấy thêm trạng thái cửa hàng & tài xế
   const db = require("../../config/db");
-  const [stores] = await db.query("SELECT status FROM stores WHERE owner_id = ?", [userId]);
+  const [stores] = await db.query("SELECT id, name, address, phone, status FROM stores WHERE owner_id = ?", [userId]);
   const [shippers] = await db.query("SELECT status, phone, vehicle FROM shippers WHERE user_id = ?", [userId]);
   
+  user.storeId = stores.length > 0 ? stores[0].id : null;
+  user.storeName = stores.length > 0 ? stores[0].name : null;
+  user.storeAddress = stores.length > 0 ? stores[0].address : null;
+  user.storePhone = stores.length > 0 ? stores[0].phone : null;
   user.storeStatus = stores.length > 0 ? stores[0].status : null;
+  
   user.shipperStatus = shippers.length > 0 ? shippers[0].status : null;
   user.vehicle = shippers.length > 0 ? shippers[0].vehicle : null;
   user.shipperPhone = shippers.length > 0 ? shippers[0].phone : null;

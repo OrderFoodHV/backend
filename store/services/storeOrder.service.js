@@ -16,8 +16,14 @@ exports.getOrders = async (storeId, query) => {
     const params = [storeId];
 
     if (status) {
-      if (status === "completed") {
-        sql += " AND (o.status = 'completed' OR o.status = 'cancelled')";
+      if (status === "pending") {
+        sql += " AND o.status = 'pending'";
+      } else if (status === "confirmed") {
+        sql += " AND o.status = 'Quán đã nhận đơn'";
+      } else if (status === "delivering") {
+        sql += " AND (o.status = 'delivering' OR o.status = 'Đang giao hàng')";
+      } else if (status === "completed") {
+        sql += " AND (o.status = 'completed' OR o.status = 'cancelled' OR o.status = 'Đơn đã bị hủy')";
       } else {
         sql += " AND o.status = ?";
         params.push(status);
@@ -139,8 +145,17 @@ exports.getOrderStats = async (storeId) => {
       cancelled: 0,
     };
     rows.forEach((row) => {
-      if (stats.hasOwnProperty(row.status)) {
-        stats[row.status] = row.count;
+      const status = row.status;
+      if (status === 'pending') {
+        stats.pending += row.count;
+      } else if (status === 'Quán đã nhận đơn') {
+        stats.confirmed += row.count;
+      } else if (status === 'delivering' || status === 'Đang giao hàng') {
+        stats.delivering += row.count;
+      } else if (status === 'completed') {
+        stats.completed += row.count;
+      } else if (status === 'cancelled' || status === 'Đơn đã bị hủy') {
+        stats.cancelled += row.count;
       }
     });
     return {

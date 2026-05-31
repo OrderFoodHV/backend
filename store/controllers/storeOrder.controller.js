@@ -66,15 +66,83 @@ exports.updateOrderStatus = async (req, res, next) => {
             "Cửa hàng đã xác nhận đơn và đang chuẩn bị món ăn ngon lành nhen sếp!",
         });
 
-        const [orders] = await db.query("SELECT * FROM orders WHERE id = ?", [
-          orderId,
-        ]);
+        const [orders] = await db.query(
+          `SELECT o.*, u.name AS customer_name, u.phone AS customer_phone 
+           FROM orders o 
+           JOIN users u ON o.user_id = u.id 
+           WHERE o.id = ?`,
+          [orderId]
+        );
         const orderDetail = orders && orders.length > 0 ? orders[0] : null;
 
         if (orderDetail) {
-          // Bóc tách khoảng cách km động (nếu trống tự động random từ 1.5 đến 7.5km để test luồng)
-          const distance =
-            orderDetail.distance || (Math.random() * 6 + 1.5).toFixed(1);
+          let distance = null; // Luôn luôn tính toán lại khoảng cách thực tế giữa Quán và Khách khi duyệt đơn
+
+          // Lấy thông tin & tọa độ của Cửa hàng (luôn lấy để phục vụ bán kính định vị shipper)
+          const [storeRows] = await db.query(
+            "SELECT latitude, longitude, address FROM stores WHERE id = ?",
+            [storeId]
+          );
+          const storeLoc = storeRows && storeRows.length > 0 ? storeRows[0] : null;
+          let storeLat = storeLoc?.latitude;
+          let storeLng = storeLoc?.longitude;
+
+          const { getOSRMDistance, geocodeAddress, calculateHaversineDistance } = require("../../src/utils/distanceHelper");
+
+          // 1. Phân giải tọa độ Quán nếu chưa có
+          if (!storeLat || !storeLng) {
+            const storeAddress = storeLoc?.address || (req.store && req.store.address);
+            if (storeAddress) {
+              console.log(`🔍 [On-the-fly Geocode Store] Cửa hàng chưa có tọa độ, tiến hành tìm cho: ${storeAddress}`);
+              const coords = await geocodeAddress(storeAddress);
+              if (coords) {
+                storeLat = coords.latitude;
+                storeLng = coords.longitude;
+                // Lưu lại DB để lần sau dùng luôn
+                await db.query("UPDATE stores SET latitude = ?, longitude = ? WHERE id = ?", [storeLat, storeLng, storeId]);
+              }
+            }
+          }
+
+          if (!distance) {
+            // Lấy thông tin & tọa độ của Địa chỉ khách hàng
+            const [addressRows] = await db.query(
+              "SELECT id, latitude, longitude, address FROM user_address WHERE user_id = ? AND address = ?",
+              [orderDetail.user_id, orderDetail.address]
+            );
+            const addressLoc = addressRows && addressRows.length > 0 ? addressRows[0] : null;
+
+            // 2. Phân giải tọa độ Khách hàng (lấy từ DB hoặc Geocode tức thời)
+            let destLat = addressLoc?.latitude;
+            let destLng = addressLoc?.longitude;
+            if (!destLat || !destLng) {
+              const destAddress = orderDetail.address;
+              if (destAddress) {
+                console.log(`🔍 [On-the-fly Geocode Customer] Địa chỉ khách chưa có tọa độ, tiến hành tìm cho: ${destAddress}`);
+                const coords = await geocodeAddress(destAddress);
+                if (coords) {
+                  destLat = coords.latitude;
+                  destLng = coords.longitude;
+                  // Lưu lại DB để lần sau dùng luôn nếu tìm được bản ghi tương ứng
+                  if (addressLoc && addressLoc.id) {
+                    await db.query("UPDATE user_address SET latitude = ?, longitude = ? WHERE id = ?", [destLat, destLng, addressLoc.id]);
+                  }
+                }
+              }
+            }
+
+            // 3. Tính khoảng cách qua OSRM (hoặc Haversine bên trong helper)
+            if (storeLat && storeLng && destLat && destLng) {
+              distance = await getOSRMDistance(storeLat, storeLng, destLat, destLng);
+            }
+
+            // Nếu thiếu tọa độ hoặc cả 2 giải pháp tính khoảng cách đều thất bại, tự động fallback random
+            if (!distance) {
+              distance = parseFloat((Math.random() * 6 + 1.5).toFixed(1));
+              console.log(`⚠️ Không có đủ tọa độ định vị, chuyển sang lấy cự ly ngẫu nhiên: ${distance} km`);
+            }
+          }
+
           const dynamicShipFee = calculateShippingFee(distance);
 
           // Ghi đè cập nhật tiền ship động và cự ly thật vào cơ sở dữ liệu
@@ -92,20 +160,59 @@ exports.updateOrderStatus = async (req, res, next) => {
           // Debug: xác nhận req.store chứa đúng dữ liệu khi emit
           console.log("🏪 [DEBUG] req.store khi emit cho shipper:", JSON.stringify(req.store));
 
-          // Phát radar thời gian thực bắn sang cho app Shipper hiển thị tiền và số cây
-          global._io.to("shipper_global_room").emit("broadcast_new_order", {
-            orderId: parseInt(orderId),
-            restaurant: req.store.name,
-            restaurant_address: req.store.address || "Chưa cập nhật địa chỉ",
-            distance: parseFloat(distance),
-            shipping_fee: dynamicShipFee,
-            total_price: Number(orderDetail.total_price),
-            address: orderDetail.address,
-            note: orderDetail.note || "Không có ghi chú",
-            customer_name: orderDetail.customer_name || "Khách hàng",
-            customer_phone: orderDetail.customer_phone || "0987654321",
-            items: items || [],
-          });
+          // 🌟 THUẬT TOÁN ĐỊNH VỊ PHÂN PHỐI ĐƠN HÀNG THEO BÁN KÍNH GPS (5km)
+          const [onlineShippers] = await db.query(
+            "SELECT user_id, latitude, longitude FROM shippers WHERE status = 'idle' AND latitude IS NOT NULL AND longitude IS NOT NULL"
+          );
+
+          let targetedShippersCount = 0;
+          const maxRadiusKm = 5.0; // Bán kính nổ đơn cho tài xế gần quán là 5km
+
+          if (onlineShippers && onlineShippers.length > 0 && storeLat && storeLng) {
+            onlineShippers.forEach((shipper) => {
+              const distToStore = calculateHaversineDistance(
+                storeLat,
+                storeLng,
+                shipper.latitude,
+                shipper.longitude
+              );
+              if (distToStore !== null && distToStore <= maxRadiusKm) {
+                console.log(`🎯 [Dispatcher] Nổ đơn #${orderId} tới Shipper User #${shipper.user_id} (Khoảng cách tới quán: ${distToStore} km)`);
+                global._io.to(`user_room_${shipper.user_id}`).emit("broadcast_new_order", {
+                  orderId: parseInt(orderId),
+                  restaurant: req.store.name,
+                  restaurant_address: req.store.address || "Chưa cập nhật địa chỉ",
+                  distance: parseFloat(distance),
+                  shipping_fee: dynamicShipFee,
+                  total_price: Number(orderDetail.total_price),
+                  address: orderDetail.address,
+                  note: orderDetail.note || "Không có ghi chú",
+                  customer_name: orderDetail.customer_name || "Khách hàng",
+                  customer_phone: orderDetail.customer_phone || "0987654321",
+                  items: items || [],
+                });
+                targetedShippersCount++;
+              }
+            });
+          }
+
+          // C. Fallback: Nếu không có tài xế nào trong bán kính 5km, phát rộng rãi cho shipper_global_room
+          if (targetedShippersCount === 0) {
+            console.log(`⚠️ [Dispatcher Fallback] Không tìm thấy tài xế nào trong bán kính ${maxRadiusKm}km. Phát rộng rãi cho shipper_global_room.`);
+            global._io.to("shipper_global_room").emit("broadcast_new_order", {
+              orderId: parseInt(orderId),
+              restaurant: req.store.name,
+              restaurant_address: req.store.address || "Chưa cập nhật địa chỉ",
+              distance: parseFloat(distance),
+              shipping_fee: dynamicShipFee,
+              total_price: Number(orderDetail.total_price),
+              address: orderDetail.address,
+              note: orderDetail.note || "Không có ghi chú",
+              customer_name: orderDetail.customer_name || "Khách hàng",
+              customer_phone: orderDetail.customer_phone || "0987654321",
+              items: items || [],
+            });
+          }
 
           await notiService.createNotification({
             userId: orderDetail.user_id,
