@@ -23,6 +23,14 @@ db.raw("SELECT 1")
         console.log("🛠️  Tự động thêm cột 'service_fee' vào bảng 'orders' thành công!");
       }
 
+      const hasDeliveryPhoto = await db.schema.hasColumn("orders", "delivery_photo");
+      if (!hasDeliveryPhoto) {
+        await db.schema.table("orders", (table) => {
+          table.string("delivery_photo", 255).nullable();
+        });
+        console.log("🛠️  Tự động thêm cột 'delivery_photo' vào bảng 'orders' thành công!");
+      }
+
       const hasTitle = await db.schema.hasColumn("user_address", "title");
       if (!hasTitle) {
         await db.schema.table("user_address", (table) => {

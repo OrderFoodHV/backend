@@ -10,6 +10,7 @@ exports.checkout = async (
   shippingFee,
   serviceFee,
   note,
+  distance, // 🔥 Nhận khoảng cách tính từ FE
 ) => {
   let cartItems = Array.isArray(itemsFromFE) ? itemsFromFE : [];
   if (cartItems.length === 0) {
@@ -40,6 +41,7 @@ exports.checkout = async (
     shippingFee,
     serviceFee || 0,
     note,
+    distance, // 🔥 Truyền khoảng cách xuống Repo
   );
 
   return { orderId, finalStoreId }; // Trả ra ngoài cả 2 thông tin để Controller bắn Socket

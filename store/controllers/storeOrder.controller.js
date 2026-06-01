@@ -11,10 +11,27 @@ const handleServiceError = (res, next, err) => {
 };
 
 // 🌟 THÊM MỚI: Thuật toán tính tiền ship động theo cự ly chuẩn hãng Grab
-const calculateShippingFee = (distanceInKm) => {
-  const baseFee = 15000; // 2km đầu tiên mặc định 15k
-  if (!distanceInKm || distanceInKm <= 2) return baseFee;
-  return baseFee + Math.round((distanceInKm - 2) * 5000); // Các km tiếp theo cộng 5.000đ/km
+const calculateShippingFee = async (distanceInKm) => {
+  const db = require("../../config/db");
+  const [feeSettings] = await db.query(
+    "SELECT * FROM fee_settings WHERE fee_type = 'shipping_fee' AND status = 'active' LIMIT 1"
+  );
+  
+  let baseFee = 15000;
+  let baseDistance = 2;
+  let extraFeePerKm = 5000;
+
+  if (feeSettings && feeSettings.length > 0) {
+    const setting = feeSettings[0];
+    baseFee = Number(setting.fee_value);
+    baseDistance = Number(setting.condition_value || 0);
+    extraFeePerKm = Number(setting.extra_value || 0);
+  }
+
+  if (!distanceInKm || distanceInKm <= baseDistance) {
+    return baseFee;
+  }
+  return baseFee + Math.round((distanceInKm - baseDistance) * extraFeePerKm);
 };
 
 exports.getOrders = async (req, res, next) => {
@@ -76,7 +93,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         const orderDetail = orders && orders.length > 0 ? orders[0] : null;
 
         if (orderDetail) {
-          let distance = null; // Luôn luôn tính toán lại khoảng cách thực tế giữa Quán và Khách khi duyệt đơn
+          let distance = orderDetail.distance ? Number(orderDetail.distance) : null; // Sử dụng khoảng cách đã tính lúc checkout nếu có
 
           // Lấy thông tin & tọa độ của Cửa hàng (luôn lấy để phục vụ bán kính định vị shipper)
           const [storeRows] = await db.query(
@@ -143,7 +160,7 @@ exports.updateOrderStatus = async (req, res, next) => {
             }
           }
 
-          const dynamicShipFee = calculateShippingFee(distance);
+          const dynamicShipFee = await calculateShippingFee(distance);
 
           // Ghi đè cập nhật tiền ship động và cự ly thật vào cơ sở dữ liệu
           await db.query(

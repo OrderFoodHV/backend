@@ -102,3 +102,56 @@ exports.updateStoreProfile = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi hệ thống!" });
   }
 };
+
+exports.getDashboardSummary = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    // 1. Lấy tỷ lệ hoa hồng của quán
+    const [feeSettings] = await db.query(
+      "SELECT fee_value FROM fee_settings WHERE fee_type = 'shop_commission' AND status = 'active' LIMIT 1"
+    );
+    let commissionPct = 20; // mặc định 20%
+    if (feeSettings && feeSettings.length > 0) {
+      commissionPct = Number(feeSettings[0].fee_value);
+    }
+    const commissionRate = commissionPct / 100;
+
+    // 2. Tính tổng tiền món ăn (subtotal) của các đơn hàng completed
+    const [subtotalRows] = await db.query(
+      `SELECT SUM(oi.quantity * oi.price) as subtotal
+       FROM order_items oi
+       JOIN orders o ON oi.order_id = o.id
+       WHERE o.store_id = ? AND o.status = 'completed'`,
+      [storeId]
+    );
+    const subtotal = Number(subtotalRows?.[0]?.subtotal || 0);
+    const netRevenue = subtotal - (subtotal * commissionRate);
+
+    // 3. Đếm số lượng các loại đơn
+    const [ordersCount] = await db.query(
+      `SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as success,
+        COUNT(CASE WHEN status = 'cancelled' OR status = 'Đơn đã bị hủy' THEN 1 END) as cancelled
+       FROM orders
+       WHERE store_id = ?`,
+      [storeId]
+    );
+
+    const stats = ordersCount?.[0] || { total: 0, success: 0, cancelled: 0 };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        revenue: Math.round(netRevenue),
+        total: stats.total || 0,
+        success: stats.success || 0,
+        cancelled: stats.cancelled || 0,
+      }
+    });
+  } catch (error) {
+    console.error("Lỗi lấy dashboard summary:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống!" });
+  }
+};

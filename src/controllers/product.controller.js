@@ -41,3 +41,22 @@ exports.getFees = catchAsync(async (req, res, next) => {
     data: rows,
   });
 });
+
+exports.getStoreDetails = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const [rows] = await db.query(
+    "SELECT id, name, address, latitude, longitude, phone FROM stores WHERE id = ?",
+    [id]
+  );
+  if (rows && rows.length > 0) {
+    res.status(200).json({
+      status: "success",
+      data: rows[0],
+    });
+  } else {
+    res.status(404).json({
+      status: "fail",
+      message: "Không tìm thấy cửa hàng!",
+    });
+  }
+});

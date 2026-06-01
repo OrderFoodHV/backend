@@ -10,6 +10,12 @@ router.get(
   verifyShipper,
   shipperController.viewAvailableOrders,
 );
+router.get(
+  "/current-order",
+  verifyToken,
+  verifyShipper,
+  shipperController.getCurrentOrder,
+);
 router.patch(
   "/accept/:orderId",
   verifyToken,

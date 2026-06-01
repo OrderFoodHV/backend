@@ -16,7 +16,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     store_id = finalData.items[0].store_id;
   }
 
-  const { address, items, total_price, note, shipping_fee, service_fee } = finalData;
+  const { address, items, total_price, note, shipping_fee, service_fee, distance } = finalData;
 
   if (!address) {
     const error = new Error("Vui lòng nhập địa chỉ giao hàng!");
@@ -33,6 +33,7 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     shipping_fee || 0,
     service_fee || 0,
     note || null,
+    distance || null,
   );
 
   const orderPayloadForStore = {

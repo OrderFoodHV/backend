@@ -33,6 +33,7 @@ exports.changeStatus = async (orderId, newStatus) => {
     "delivering",
     "completed",
     "cancelled",
+    "disputed",
   ];
   if (!allowedStatuses.includes(newStatus)) {
     throw new Error("Trạng thái không hợp lệ!");
@@ -41,11 +42,32 @@ exports.changeStatus = async (orderId, newStatus) => {
   // 1. Cập nhật trạng thái chính ở bảng orders
   await orderRepo.updateOrderStatus(orderId, newStatus);
 
+  if (newStatus === "disputed") {
+    const order = await db("orders").where({ id: orderId }).first();
+    if (order) {
+      const existing = await db("disputes").where({ order_id: orderId }).first();
+      if (!existing) {
+        const dbConfig = require("../../config/db");
+        await dbConfig("disputes").insert({
+          order_id: orderId,
+          user_id: order.user_id,
+          reason: "Khách hàng khiếu nại chưa nhận được thức ăn!",
+          status: "pending",
+          created_at: new Date()
+        });
+      }
+    }
+  }
+
   // 2. Bắn thêm một dòng lịch sử vào bảng log order_tracking để đồng bộ thiết kế mới
+  let noteMsg = `Hệ thống cập nhật trạng thái đơn thành: ${newStatus}`;
+  if (newStatus === "disputed") {
+    noteMsg = "Khách hàng khiếu nại chưa nhận được đồ ăn!";
+  }
   await trackingRepo.insertLog(
     orderId,
     newStatus,
-    `Hệ thống cập nhật trạng thái đơn thành: ${newStatus}`,
+    noteMsg,
   );
 
   return `Đã chuyển đơn hàng sang trạng thái: ${newStatus}`;

@@ -32,15 +32,18 @@ exports.acceptOrder = async (userId, orderId) => {
   });
 };
 
-exports.completeOrder = async (userId, orderId) => {
+exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
   return await db.transaction(async (trx) => {
     const shipper = await trx("shippers").where({ user_id: userId }).first();
     if (!shipper) throw new Error("Tài xế không tồn tại");
 
-    // 1. Cập nhật trạng thái
+    // 1. Cập nhật trạng thái và ảnh bằng chứng giao hàng
     await trx("orders")
       .where({ id: orderId, shipper_id: shipper.id }) // Dùng shipper.id thay cho userId
-      .update({ status: "completed" });
+      .update({ 
+        status: "completed",
+        delivery_photo: deliveryPhoto || null
+      });
 
     // 2. Ghi log hoàn thành
     await trx("order_tracking").insert({

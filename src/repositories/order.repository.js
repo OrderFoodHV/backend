@@ -9,6 +9,7 @@ exports.createOrderTransaction = async (
   shippingFee,
   serviceFee,
   note,
+  distance,
 ) => {
   return await db.transaction(async (trx) => {
     // 1. Insert và lấy ID chuẩn nhất
@@ -19,6 +20,7 @@ exports.createOrderTransaction = async (
       total_price: totalAmount,
       shipping_fee: shippingFee || 0,
       service_fee: serviceFee || 0,
+      distance: distance || null, // Lưu khoảng cách thực tế
       note: note || null,
       status: "pending",
       created_at: new Date(),

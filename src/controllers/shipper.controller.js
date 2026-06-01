@@ -85,17 +85,21 @@ exports.accept = catchAsync(async (req, res) => {
 exports.complete = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const { orderId } = req.params;
+  const { deliveryPhoto } = req.body;
 
   // 1. Nghiệp vụ DB cũ của sếp
-  const message = await shipperService.completeOrder(userId, orderId);
+  const message = await shipperService.completeOrder(userId, orderId, deliveryPhoto);
 
   // Móc thông tin đơn hàng để lấy ID khách hàng phục vụ lưu thông báo lịch sử
   const order = await db("orders").where({ id: orderId }).first();
+
+  let earnAmount = 0;
 
   if (global._io) {
     // 2. Kích hoạt nổ pháo hoa bên giao diện Khách hàng thời gian thực
     global._io.to(`order_room_${orderId}`).emit("order_status_updated", {
       status: "completed",
+      deliveryPhoto: order ? order.delivery_photo : null
     });
 
     // 3. 🌟 THÊM MỚI: Lưu lịch sử thông báo hoàn tất cho cả Khách hàng và Tài xế
@@ -109,7 +113,17 @@ exports.complete = catchAsync(async (req, res) => {
         type: "order_status",
       });
 
-      const earnAmount = Number(order.shipping_fee) || 15000;
+      const [feeSettings] = await db.query(
+        "SELECT fee_value FROM fee_settings WHERE fee_type = 'shipper_commission' AND status = 'active' LIMIT 1"
+      );
+      let commissionPct = 20; // Mặc định 20%
+      if (feeSettings && feeSettings.length > 0) {
+        commissionPct = Number(feeSettings[0].fee_value);
+      }
+      const shipperFactor = (100 - commissionPct) / 100;
+
+      const shippingFeeVal = Number(order.shipping_fee) || 15000;
+      earnAmount = Math.round(shippingFeeVal * shipperFactor);
 
       // Thông báo cộng tiền vào ví cho Tài xế
       await notiService.createNotification({
@@ -122,10 +136,10 @@ exports.complete = catchAsync(async (req, res) => {
     }
   }
 
-  res.status(200).json({ success: true, message });
+  res.status(200).json({ success: true, message, earnAmount });
 });
 
-// Xử lý Thống kê & Ví thu nhập Tài Xế (GIỮ NGUYÊN 100%)
+// Xử lý Thống kê & Ví thu nhập Tài Xế
 exports.getWallet = catchAsync(async (req, res) => {
   const userId = req.user.id;
   const shipper = await db("shippers").where({ user_id: userId }).first();
@@ -135,6 +149,15 @@ exports.getWallet = catchAsync(async (req, res) => {
       .status(404)
       .json({ success: false, message: "Không tìm thấy hồ sơ tài xế!" });
   }
+
+  const [feeSettings] = await db.query(
+    "SELECT fee_value FROM fee_settings WHERE fee_type = 'shipper_commission' AND status = 'active' LIMIT 1"
+  );
+  let commissionPct = 20; // Mặc định 20%
+  if (feeSettings && feeSettings.length > 0) {
+    commissionPct = Number(feeSettings[0].fee_value);
+  }
+  const shipperFactor = (100 - commissionPct) / 100;
 
   const completedOrders = await db("orders")
     .select("id", "total_price", "shipping_fee", "created_at")
@@ -151,7 +174,8 @@ exports.getWallet = catchAsync(async (req, res) => {
 
   completedOrders.forEach((order) => {
     const orderDate = new Date(order.created_at);
-    const earnAmount = Number(order.shipping_fee) || 15000;
+    const shippingFeeVal = Number(order.shipping_fee) || 15000;
+    const earnAmount = Math.round(shippingFeeVal * shipperFactor);
     balance += earnAmount;
     if (orderDate >= startOfToday) {
       todayEarn += earnAmount;
@@ -218,4 +242,47 @@ exports.updateLocation = catchAsync(async (req, res) => {
   });
 
   res.status(200).json({ success: true, message: "Cập nhật vị trí GPS thành công!" });
+});
+
+exports.getCurrentOrder = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const shipper = await db("shippers").where({ user_id: userId }).first();
+  if (!shipper) {
+    return res.status(404).json({ success: false, message: "Không tìm thấy hồ sơ tài xế!" });
+  }
+
+  // Lấy đơn hàng đang active của shipper này: status là 'Quán đã nhận đơn' hoặc 'Đang giao hàng'
+  const activeOrder = await db("orders")
+    .where({ shipper_id: shipper.id })
+    .whereIn("status", ["Quán đã nhận đơn", "Đang giao hàng"])
+    .first();
+
+  if (!activeOrder) {
+    return res.status(200).json({ success: true, data: null });
+  }
+
+  // Lấy thêm thông tin nhà hàng và món ăn
+  const store = await db("stores").where({ id: activeOrder.store_id }).first();
+  const customer = await db("users").where({ id: activeOrder.user_id }).first();
+  const items = await db("order_items")
+    .join("products", "products.id", "=", "order_items.product_id")
+    .select("products.name", "order_items.quantity", "order_items.price")
+    .where({ order_id: activeOrder.id });
+
+  const formattedOrder = {
+    orderId: activeOrder.id,
+    restaurant: store ? store.name : "Nhà hàng",
+    restaurant_address: store ? store.address : "Địa chỉ quán",
+    distance: activeOrder.distance,
+    shipping_fee: activeOrder.shipping_fee,
+    total_price: activeOrder.total_price,
+    address: activeOrder.address,
+    note: activeOrder.note || "Không có ghi chú",
+    customer_name: customer ? customer.name : "Khách hàng",
+    customer_phone: customer ? customer.phone : "Chưa cập nhật số điện thoại",
+    items: items || [],
+    status: activeOrder.status,
+  };
+
+  res.status(200).json({ success: true, data: formattedOrder });
 });

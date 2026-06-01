@@ -24,6 +24,7 @@ router.put("/profile", storeProfileController.updateStoreProfile);
 // Middleware verifyStoreAccess đã được tích hợp vào từng sub-router
 
 // Mount các route
+router.get("/:storeId/dashboard-summary", verifyStoreAccess, storeProfileController.getDashboardSummary);
 router.use("/:storeId/revenue", revenueRoutes);
 router.use("/:storeId/status", storeStatusRoutes);
 router.use("/:storeId/notifications", notificationRoutes);

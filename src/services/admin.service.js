@@ -319,19 +319,19 @@ exports.updateFeeByType = async (type, data) => {
 };
 
 exports.createFee = async (data) => {
-  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value } = data;
+  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value, extra_value } = data;
   const [result] = await db.query(
-    "INSERT INTO fee_settings (fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [fee_type, fee_value, fee_description || null, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null]
+    "INSERT INTO fee_settings (fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value, extra_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [fee_type, fee_value, fee_description || null, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null, extra_value || 0]
   );
   return result.insertId;
 };
 
 exports.updateFeeById = async (id, data) => {
-  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value } = data;
+  const { fee_type, fee_value, fee_description, status, calculation_type, condition_type, condition_value, extra_value } = data;
   await db.query(
-    "UPDATE fee_settings SET fee_type = ?, fee_value = ?, fee_description = ?, status = ?, calculation_type = ?, condition_type = ?, condition_value = ?, updated_at = NOW() WHERE id = ?",
-    [fee_type, fee_value, fee_description, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null, id]
+    "UPDATE fee_settings SET fee_type = ?, fee_value = ?, fee_description = ?, status = ?, calculation_type = ?, condition_type = ?, condition_value = ?, extra_value = ?, updated_at = NOW() WHERE id = ?",
+    [fee_type, fee_value, fee_description, status || "active", calculation_type || "fixed", condition_type || "none", condition_value || null, extra_value || 0, id]
   );
 };
 
@@ -355,7 +355,7 @@ exports.updateFee = async (fee_type, fee_value) => {
 exports.getAllDisputes = async () => {
   const [rows] = await db.query(
     `SELECT d.*, u.name AS user_name, u.email AS user_email,
-            o.total_price AS order_total
+            o.total_price AS order_total, o.delivery_photo
      FROM disputes d
      LEFT JOIN users u ON u.id = d.user_id
      LEFT JOIN orders o ON o.id = d.order_id
@@ -367,7 +367,7 @@ exports.getAllDisputes = async () => {
 exports.getDisputeById = async (id) => {
   const [rows] = await db.query(
     `SELECT d.*, u.name AS user_name, u.email AS user_email,
-            o.total_price AS order_total
+            o.total_price AS order_total, o.delivery_photo
      FROM disputes d
      LEFT JOIN users u ON u.id = d.user_id
      LEFT JOIN orders o ON o.id = d.order_id
