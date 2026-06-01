@@ -117,22 +117,42 @@ exports.getDashboardSummary = async (req, res) => {
     }
     const commissionRate = commissionPct / 100;
 
-    // 2. Tính tổng tiền món ăn (subtotal) của các đơn hàng completed
-    const [subtotalRows] = await db.query(
-      `SELECT SUM(oi.quantity * oi.price) as subtotal
-       FROM order_items oi
-       JOIN orders o ON oi.order_id = o.id
-       WHERE o.store_id = ? AND o.status = 'completed'`,
-      [storeId]
-    );
-    const subtotal = Number(subtotalRows?.[0]?.subtotal || 0);
-    const netRevenue = subtotal - (subtotal * commissionRate);
+    // 2. Lấy danh sách đơn hàng đã hoàn thành để tính toán doanh thu thực tế
+    const completedOrders = await db("orders")
+      .where({ store_id: storeId })
+      .whereIn("status", ["completed", "delivered"]);
+
+    let netRevenue = 0;
+    for (const order of completedOrders) {
+      const items = await db("order_items").where({ order_id: order.id });
+      const subtotal = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+
+      // Tính voucher của shop nếu có
+      let storeVoucherDiscount = 0;
+      if (order.store_voucher_id) {
+        const storeVoucher = await db("store_vouchers").where({ id: order.store_voucher_id }).first();
+        if (storeVoucher) {
+          if (storeVoucher.discount_type === 'percent') {
+            storeVoucherDiscount = (subtotal * Number(storeVoucher.discount_value)) / 100;
+            if (Number(storeVoucher.max_discount) > 0) {
+              storeVoucherDiscount = Math.min(storeVoucherDiscount, Number(storeVoucher.max_discount));
+            }
+          } else {
+            storeVoucherDiscount = Number(storeVoucher.discount_value);
+          }
+        }
+      }
+
+      const netFoodPrice = Math.max(0, subtotal - storeVoucherDiscount);
+      const storeEarn = Math.round(netFoodPrice * (1 - commissionRate));
+      netRevenue += storeEarn;
+    }
 
     // 3. Đếm số lượng các loại đơn
     const [ordersCount] = await db.query(
       `SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as success,
+        COUNT(CASE WHEN status = 'completed' OR status = 'delivered' THEN 1 END) as success,
         COUNT(CASE WHEN status = 'cancelled' OR status = 'Đơn đã bị hủy' THEN 1 END) as cancelled
        FROM orders
        WHERE store_id = ?`,

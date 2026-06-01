@@ -418,9 +418,66 @@ exports.approveRefund = async (id) => {
 };
 
 // ── Vouchers ──
+// Helper to map mixed input data formats (from Admin Web page vs Backend APIs) to DB schema
+const mapVoucherInputData = (data) => {
+  const code = data.code;
+  const min_order_amount = (data.min_order_amount === undefined || data.min_order_amount === null || data.min_order_amount === "") ? 0 : data.min_order_amount;
+  
+  let discount_percent = 0;
+  let discount_amount = 0;
+  
+  if (data.discount_type !== undefined) {
+    if (data.discount_type === 'percent') {
+      discount_percent = parseFloat(data.discount_value) || 0;
+      discount_amount = 0;
+    } else {
+      discount_amount = parseFloat(data.discount_value) || 0;
+      discount_percent = 0;
+    }
+  } else {
+    discount_percent = (data.discount_percent === undefined || data.discount_percent === null || data.discount_percent === "") ? 0 : data.discount_percent;
+    discount_amount = (data.discount_amount === undefined || data.discount_amount === null || data.discount_amount === "") ? 0 : data.discount_amount;
+  }
+  
+  const max_uses = data.quantity !== undefined ? data.quantity : (data.max_uses !== undefined ? data.max_uses : 100);
+  
+  let expired_at = null;
+  if (data.end_date !== undefined) {
+    expired_at = data.end_date || null;
+  } else if (data.expired_at !== undefined) {
+    expired_at = data.expired_at || null;
+  }
+
+  return {
+    code,
+    discount_percent,
+    discount_amount,
+    min_order_amount,
+    max_uses,
+    expired_at
+  };
+};
+
 exports.getAllVouchers = async () => {
   const [rows] = await db.query("SELECT * FROM vouchers ORDER BY created_at DESC");
-  return rows;
+  return rows.map(v => {
+    // Determine status
+    let status = 'active';
+    if (!v.is_active) {
+      status = 'inactive';
+    } else if (v.expired_at && new Date(v.expired_at) < new Date()) {
+      status = 'expired';
+    }
+
+    return {
+      ...v,
+      discount_type: v.discount_percent > 0 ? 'percent' : 'fixed',
+      discount_value: v.discount_percent > 0 ? v.discount_percent : parseFloat(v.discount_amount),
+      quantity: v.max_uses,
+      end_date: v.expired_at,
+      status: status
+    };
+  });
 };
 
 exports.getVoucherStats = async () => {
@@ -437,21 +494,21 @@ exports.getVoucherStats = async () => {
 };
 
 exports.createVoucher = async (data) => {
-  const { code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at } = data;
+  const mapped = mapVoucherInputData(data);
   const [result] = await db.query(
     `INSERT INTO vouchers (code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at, is_active)
      VALUES (?, ?, ?, ?, ?, ?, 1)`,
-    [code, discount_percent || 0, discount_amount || 0, min_order_amount || 0, max_uses || 100, expired_at]
+    [mapped.code, mapped.discount_percent, mapped.discount_amount, mapped.min_order_amount, mapped.max_uses, mapped.expired_at]
   );
   return result.insertId;
 };
 
 exports.updateVoucher = async (id, data) => {
-  const { code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at } = data;
+  const mapped = mapVoucherInputData(data);
   await db.query(
     `UPDATE vouchers SET code = ?, discount_percent = ?, discount_amount = ?,
      min_order_amount = ?, max_uses = ?, expired_at = ? WHERE id = ?`,
-    [code, discount_percent, discount_amount, min_order_amount, max_uses, expired_at, id]
+    [mapped.code, mapped.discount_percent, mapped.discount_amount, mapped.min_order_amount, mapped.max_uses, mapped.expired_at, id]
   );
 };
 

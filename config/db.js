@@ -57,6 +57,14 @@ db.raw("SELECT 1")
           console.log(`🛠️  Tự động thêm cột 'longitude' vào bảng '${tableName}' thành công!`);
         }
       }
+
+      const hasStoreBalance = await db.schema.hasColumn("stores", "balance");
+      if (!hasStoreBalance) {
+        await db.schema.table("stores", (table) => {
+          table.decimal("balance", 15, 2).defaultTo(0.00);
+        });
+        console.log("🛠️  Tự động thêm cột 'balance' vào bảng 'stores' thành công!");
+      }
     } catch (err) {
       console.error("❌ Lỗi tự động nâng cấp cấu trúc bảng:", err);
     }
