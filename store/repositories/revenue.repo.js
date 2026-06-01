@@ -19,7 +19,7 @@ exports.getSummary = async (storeId, dateCondition, params) => {
       COUNT(CASE WHEN o.status = 'cancelled' THEN 1 END) as cancelled_orders,
       COUNT(CASE WHEN o.status = 'pending' THEN 1 END) as pending_orders
     FROM orders o
-    WHERE o.store_id = ? AND o.status != 'cancelled'${dateCondition}`,
+    WHERE o.store_id = ? ${dateCondition}`,
     params
   );
   return summary[0];

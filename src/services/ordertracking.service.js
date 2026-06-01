@@ -19,10 +19,15 @@ exports.getOrderDetails = async (orderId, userId) => {
   // Móc thêm cả mốc thời gian luân chuyển đơn từ bảng order_tracking ra trả về cho FE vẽ timeline
   const timelines = await trackingRepo.getTrackingLogsByOrderId(orderId);
 
+  // Lấy đánh giá của đơn hàng (nếu có)
+  const orderReviewRepo = require("../repositories/order_review.repository");
+  const review = await orderReviewRepo.getReviewByOrderId(orderId);
+
   return {
     order_info: isOwner,
     items: items,
     timelines: timelines,
+    review: review || null,
   };
 };
 

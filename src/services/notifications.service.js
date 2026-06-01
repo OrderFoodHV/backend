@@ -22,13 +22,22 @@ exports.createNotification = async ({
   try {
     let insertedId = null;
 
+    // If storeId is provided but no userId, resolve the store owner's user_id to save in database
+    if (storeId && !userId) {
+      const store = await db("stores").where({ id: storeId }).select("owner_id").first();
+      if (store) {
+        userId = store.owner_id;
+      }
+    }
+
     // Only insert to notifications table if userId is present (as it references users table)
     if (userId) {
       const [id] = await db("notifications").insert({
         user_id: userId,
         title,
         message: content, // Map content to DB column name 'message'
-        type: ['order', 'promotion', 'reward', 'general'].includes(type) ? type : 'general',
+        type: ['order', 'promotion', 'reward', 'general', 'review'].includes(type) ? type : 'general',
+        target_role: role || 'user',
         is_read: 0,
         created_at: new Date(),
       });
