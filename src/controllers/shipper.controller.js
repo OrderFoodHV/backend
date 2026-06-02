@@ -68,6 +68,34 @@ exports.accept = catchAsync(async (req, res) => {
 
     // 2. 🌟 THÊM MỚI: BÁO CHO MÁY CỦA CHỦ QUÁN BIẾT LÀ ĐÃ CÓ TÀI XẾ CHỐT ĐƠN NÀY RỒI
     if (order) {
+      const driverName = (shipper ? shipper.user_name : "") || "Tài xế";
+      // Ghi vết thông báo cho Khách hàng
+      await notiService.createNotification({
+        userId: order.user_id,
+        role: "user",
+        title: "Tài xế đã nhận đơn! 🏍️",
+        content: `Tài xế ${driverName} đang di chuyển đến quán để lấy món ăn cho sếp nhen.`,
+        type: "order",
+      });
+
+      // Ghi vết thông báo cho Cửa hàng
+      await notiService.createNotification({
+        storeId: order.store_id,
+        role: "store",
+        title: "Tài xế đã nhận đơn! 🏍️",
+        content: `Tài xế ${driverName} đang đến quán lấy đơn hàng #${orderId}.`,
+        type: "order",
+      });
+
+      // Ghi vết thông báo cho Tài xế
+      await notiService.createNotification({
+        userId: userId,
+        role: "shipper",
+        title: "Nhận đơn thành công! 🏍️",
+        content: `Bạn đã nhận đơn hàng #${orderId}. Hãy di chuyển đến quán để lấy món.`,
+        type: "order",
+      });
+
       global._io
         .to(`store_room_${order.store_id}`)
         .emit("order_status_updated", {
@@ -88,12 +116,12 @@ exports.complete = catchAsync(async (req, res) => {
   const { deliveryPhoto } = req.body;
 
   // 1. Nghiệp vụ DB cũ của sếp
-  const message = await shipperService.completeOrder(userId, orderId, deliveryPhoto);
+  const result = await shipperService.completeOrder(userId, orderId, deliveryPhoto);
+  const message = result.message;
+  const earnAmount = result.shipperEarn || 0;
 
   // Móc thông tin đơn hàng để lấy ID khách hàng phục vụ lưu thông báo lịch sử
   const order = await db("orders").where({ id: orderId }).first();
-
-  let earnAmount = 0;
 
   if (global._io) {
     // 2. Kích hoạt nổ pháo hoa bên giao diện Khách hàng thời gian thực
@@ -102,36 +130,42 @@ exports.complete = catchAsync(async (req, res) => {
       deliveryPhoto: order ? order.delivery_photo : null
     });
 
-    // 3. 🌟 THÊM MỚI: Lưu lịch sử thông báo hoàn tất cho cả Khách hàng và Tài xế
+    // 3. 🌟 THÊM MỚI: Lưu lịch sử thông báo hoàn tất cho cả Khách hàng, Tài xế và Cửa hàng
     if (order) {
-      // Thông báo cho Khách
+      // Thông báo cho Khách (User)
       await notiService.createNotification({
         userId: order.user_id,
         role: "user",
         title: "Giao hàng thành công! 🎉",
-        content: `Đơn hàng #${orderId} đã được giao tận tay bạn. Chúc bạn ăn ngon miệng!`,
-        type: "order_status",
+        content: `Đơn hàng #${orderId} đã được giao thành công tới sếp. Chúc sếp ngon miệng!`,
+        type: "order",
       });
 
-      const [feeSettings] = await db.query(
-        "SELECT fee_value FROM fee_settings WHERE fee_type = 'shipper_commission' AND status = 'active' LIMIT 1"
-      );
-      let commissionPct = 20; // Mặc định 20%
-      if (feeSettings && feeSettings.length > 0) {
-        commissionPct = Number(feeSettings[0].fee_value);
-      }
-      const shipperFactor = (100 - commissionPct) / 100;
-
-      const shippingFeeVal = Number(order.shipping_fee) || 15000;
-      earnAmount = Math.round(shippingFeeVal * shipperFactor);
-
-      // Thông báo cộng tiền vào ví cho Tài xế
+      // Thông báo cho Tài xế (1. Thu nhập được cộng)
       await notiService.createNotification({
-        userId: userId, // ID tài khoản tài xế
+        userId: userId,
         role: "shipper",
         title: "Thu nhập được cộng! 💰",
         content: `Bạn đã nhận được +${earnAmount.toLocaleString("vi-VN")}đ từ việc hoàn thành đơn hàng #${orderId}.`,
         type: "wallet",
+      });
+
+      // Thông báo cho Tài xế (2. Hoàn thành chuyến đi)
+      await notiService.createNotification({
+        userId: userId,
+        role: "shipper",
+        title: "Hoàn thành chuyến đi! 🏍️",
+        content: `Hoàn thành chuyến đi. Phí ship +${earnAmount.toLocaleString("vi-VN")}đ đã được cộng vào ví của bạn.`,
+        type: "wallet",
+      });
+
+      // Thông báo cộng doanh thu cho Cửa hàng
+      await notiService.createNotification({
+        storeId: order.store_id,
+        role: "store",
+        title: "Đơn hàng hoàn thành! 🎉",
+        content: `Đơn hàng #${orderId} đã giao thành công. Doanh thu của bạn đã được cộng +${(result.storeEarn || 0).toLocaleString("vi-VN")}đ.`,
+        type: "order",
       });
     }
   }

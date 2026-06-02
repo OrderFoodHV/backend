@@ -64,6 +64,11 @@ exports.updateOrderStatus = async (req, res, next) => {
     const { status, note } = req.body;
     const db = require("../../config/db");
 
+    const [existing] = await db("orders").where({ id: orderId, store_id: storeId }).select("status");
+    if (existing && existing.status === status) {
+      return ok(res, "Cập nhật trạng thái đơn hàng thành công!");
+    }
+
     const message = await storeOrderService.updateOrderStatus(
       storeId,
       orderId,
@@ -238,6 +243,14 @@ exports.updateOrderStatus = async (req, res, next) => {
             content: `Đơn hàng #${orderId} đã được nhà hàng xác nhận và đang bắt đầu chế biến món ăn ngon lành cho sếp.`,
             type: "order",
           });
+
+          await notiService.createNotification({
+            storeId: storeId,
+            role: "store",
+            title: "Đã nhận đơn hàng! 🍳",
+            content: `Bạn đã xác nhận nhận đơn hàng #${orderId} và đang chuẩn bị món.`,
+            type: "order",
+          });
         }
       }
 
@@ -256,8 +269,16 @@ exports.updateOrderStatus = async (req, res, next) => {
           await notiService.createNotification({
             userId: orderDetail.user_id,
             role: "user",
-            title: "Đơn hàng bị từ chối ❌",
-            content: `Cửa hàng đã từ chối đơn hàng #${orderId} của sếp do quá tải hoặc hết món mất rồi.`,
+            title: "Đơn hàng đã bị hủy ❌",
+            content: `Đơn hàng #${orderId} của sếp đã bị hủy.`,
+            type: "order",
+          });
+
+          await notiService.createNotification({
+            storeId: storeId,
+            role: "store",
+            title: "Đã hủy đơn hàng ❌",
+            content: `Đơn hàng #${orderId} đã bị hủy thành công.`,
             type: "order",
           });
         }
@@ -279,10 +300,31 @@ exports.updateOrderStatus = async (req, res, next) => {
           await notiService.createNotification({
             userId: orderDetail.user_id,
             role: "user",
-            title: "Đơn hàng đang đến! 🏍️",
-            content: `Túi đồ ăn đơn #${orderId} đã rời quán, tài xế đang phi như bay tới chỗ sếp nhen.`,
+            title: "Tài xế đang giao hàng! 🏍️",
+            content: `Đơn hàng #${orderId} đã được bàn giao cho tài xế và đang trên đường giao tới sếp nhen!`,
             type: "order",
           });
+
+          await notiService.createNotification({
+            storeId: storeId,
+            role: "store",
+            title: "Đơn hàng đang được giao! 🏍️",
+            content: `Đơn hàng #${orderId} đã được tài xế lấy và bắt đầu đi giao.`,
+            type: "order",
+          });
+
+          if (orderDetail.shipper_id) {
+            const shipperUser = await db("shippers").where({ id: orderDetail.shipper_id }).select("user_id").first();
+            if (shipperUser) {
+              await notiService.createNotification({
+                userId: shipperUser.user_id,
+                role: "shipper",
+                title: "Đang giao hàng! 🏍️",
+                content: `Bạn đã lấy món của đơn #${orderId}. Bắt đầu đi giao cho khách hàng.`,
+                type: "order",
+              });
+            }
+          }
         }
       }
     }

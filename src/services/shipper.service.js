@@ -53,6 +53,9 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       note: "Đơn hàng đã được giao thành công.",
     });
 
+    let shipperEarn = 0;
+    let storeEarn = 0;
+
     // 3. Thực hiện chia tiền (wallet/split logic)
     const order = await trx("orders").where({ id: orderId }).first();
     if (order) {
@@ -67,7 +70,7 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       const shipperFactor = (100 - shipperCommissionPct) / 100;
       const shippingFeeVal = Number(order.shipping_fee) || 15000;
       const tipAmountVal = Number(order.tip_amount) || 0;
-      const shipperEarn = Math.round(shippingFeeVal * shipperFactor) + tipAmountVal;
+      shipperEarn = Math.round(shippingFeeVal * shipperFactor) + tipAmountVal;
 
       // Cập nhật ví tài xế
       const existingWallet = await trx("shipper_wallets").where({ shipper_id: shipper.id }).first();
@@ -114,7 +117,7 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
         shopCommissionPct = Number(shopFeeSettings.fee_value);
       }
       const shopFactor = (100 - shopCommissionPct) / 100;
-      const storeEarn = Math.round(netFoodPrice * shopFactor);
+      storeEarn = Math.round(netFoodPrice * shopFactor);
 
       // Cập nhật số dư quán
       await trx("stores")
@@ -131,6 +134,6 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       });
     }
 
-    return "Đã hoàn thành đơn!";
+    return { message: "Đã hoàn thành đơn!", shipperEarn, storeEarn };
   });
 };

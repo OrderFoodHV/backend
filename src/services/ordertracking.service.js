@@ -47,6 +47,41 @@ exports.changeStatus = async (orderId, newStatus) => {
   // 1. Cập nhật trạng thái chính ở bảng orders
   await orderRepo.updateOrderStatus(orderId, newStatus);
 
+  try {
+    const dbConfig = require("../../config/db");
+    const order = await dbConfig("orders").where({ id: orderId }).first();
+    if (order) {
+      const notiService = require("./notifications.service");
+      let notiTitle = "";
+      let notiContent = "";
+      if (newStatus === "confirmed") {
+        notiTitle = "Quán đã nhận đơn! 🍳";
+        notiContent = `Đơn hàng #${orderId} đã được nhà hàng xác nhận và đang chế biến món ăn.`;
+      } else if (newStatus === "delivering") {
+        notiTitle = "Tài xế đang giao hàng! 🏍️";
+        notiContent = `Đơn hàng #${orderId} đã được bàn giao cho tài xế và đang trên đường giao tới sếp nhen!`;
+      } else if (newStatus === "completed") {
+        notiTitle = "Giao hàng thành công! 🎉";
+        notiContent = `Đơn hàng #${orderId} đã được giao thành công tới sếp. Chúc sếp ngon miệng!`;
+      } else if (newStatus === "cancelled") {
+        notiTitle = "Đơn hàng đã bị hủy ❌";
+        notiContent = `Đơn hàng #${orderId} của sếp đã bị hủy.`;
+      }
+
+      if (notiTitle && notiContent) {
+        await notiService.createNotification({
+          userId: order.user_id,
+          role: "user",
+          title: notiTitle,
+          content: notiContent,
+          type: "order",
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error creating status update notification in tracking service:", err);
+  }
+
   if (newStatus === "disputed") {
     const order = await db("orders").where({ id: orderId }).first();
     if (order) {

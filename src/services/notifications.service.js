@@ -2,8 +2,8 @@
 const notiRepo = require("../repositories/notifications.repository");
 const db = require("../../config/db"); // Import db cấu hình của sếp
 
-exports.getUserNotifications = async (userId) => {
-  return await notiRepo.getNotificationsByUserId(userId);
+exports.getUserNotifications = async (userId, role) => {
+  return await notiRepo.getNotificationsByUserId(userId, role);
 };
 
 exports.readAllNotifications = async (userId) => {

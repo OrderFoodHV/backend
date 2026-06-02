@@ -10,14 +10,15 @@ exports.generateHmac = (data, secret) => {
   return crypto.createHmac("sha256", secret).update(data).digest("hex");
 };
 
-/**
- * Verify HMAC-SHA256 signature
- * @param {string} data 
- * @param {string} signature 
- * @param {string} secret 
- * @returns {boolean}
- */
 exports.verifyHmac = (data, signature, secret) => {
-  const hash = crypto.createHmac("sha256", secret).update(data).digest("hex");
-  return hash === signature;
+  const serverHmac = crypto.createHmac("sha256", secret).update(data).digest("hex");
+  
+  const serverHmacBuffer = Buffer.from(serverHmac, "hex");
+  const clientHmacBuffer = Buffer.from(signature, "hex");
+
+  if (serverHmacBuffer.length !== clientHmacBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(serverHmacBuffer, clientHmacBuffer);
 };

@@ -162,6 +162,7 @@ exports.getDashboardSummary = async (req, res) => {
     const stats = ordersCount?.[0] || { total: 0, success: 0, cancelled: 0 };
 
     res.status(200).json({
+      status: "success",
       success: true,
       data: {
         revenue: Math.round(netRevenue),

@@ -13,9 +13,9 @@ exports.getSummary = async (storeId, dateCondition, params) => {
   const [summary] = await db.query(
     `SELECT 
       COUNT(*) as total_orders,
-      IFNULL(SUM(CASE WHEN o.status = 'completed' THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE 0 END), 0) as total_revenue,
-      IFNULL(AVG(CASE WHEN o.status = 'completed' THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE NULL END), 0) as avg_order_value,
-      COUNT(CASE WHEN o.status = 'completed' THEN 1 END) as completed_orders,
+      IFNULL(SUM(CASE WHEN (o.status = 'completed' OR o.status = 'delivered') THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE 0 END), 0) as total_revenue,
+      IFNULL(AVG(CASE WHEN (o.status = 'completed' OR o.status = 'delivered') THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE NULL END), 0) as avg_order_value,
+      COUNT(CASE WHEN (o.status = 'completed' OR o.status = 'delivered') THEN 1 END) as completed_orders,
       COUNT(CASE WHEN o.status = 'cancelled' THEN 1 END) as cancelled_orders,
       COUNT(CASE WHEN o.status = 'pending' THEN 1 END) as pending_orders
     FROM orders o
@@ -39,9 +39,9 @@ exports.getChart = async (storeId, groupBy, dateFormat, dateCondition, params) =
     `SELECT 
       ${dateFormat},
       COUNT(*) as total_orders,
-      IFNULL(SUM(CASE WHEN o.status = 'completed' THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE 0 END), 0) as revenue
+      IFNULL(SUM(CASE WHEN (o.status = 'completed' OR o.status = 'delivered') THEN (SELECT SUM(oi.quantity * oi.price) FROM order_items oi WHERE oi.order_id = o.id) * ${factor} ELSE 0 END), 0) as revenue
     FROM orders o
-    WHERE o.store_id = ? AND o.status = 'completed'${dateCondition}
+    WHERE o.store_id = ? AND (o.status = 'completed' OR o.status = 'delivered')${dateCondition}
     GROUP BY ${groupBy}
     ORDER BY ${groupBy} ASC`,
     params
@@ -58,7 +58,7 @@ exports.getTopProducts = async (storeId, limit, dateCondition, params) => {
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     JOIN orders o ON oi.order_id = o.id
-    WHERE o.store_id = ? AND o.status = 'completed'${dateCondition}
+    WHERE o.store_id = ? AND (o.status = 'completed' OR o.status = 'delivered')${dateCondition}
     GROUP BY p.id
     ORDER BY total_sold DESC
     LIMIT ?`,

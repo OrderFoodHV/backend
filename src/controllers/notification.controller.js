@@ -3,7 +3,8 @@ const catchAsync = require("../utils/catchAsync");
 
 exports.getAllNotifications = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
-  const listNoti = await notiService.getUserNotifications(userId);
+  const role = req.query.role || "user";
+  const listNoti = await notiService.getUserNotifications(userId, role);
   res.status(200).json({ status: "success", data: listNoti });
 });
 

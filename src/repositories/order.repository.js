@@ -75,7 +75,7 @@ exports.findOrderItemsDetails = async (orderId) => {
   return await db("order_items as oi")
     .join("products as p", "oi.product_id", "p.id")
     .where("oi.order_id", orderId)
-    .select("p.name", "p.image", "oi.quantity", "oi.price");
+    .select("p.id as product_id", "p.name", "p.image", "oi.quantity", "oi.price");
 };
 
 exports.updateOrderStatus = async (orderId, newStatus) => {
