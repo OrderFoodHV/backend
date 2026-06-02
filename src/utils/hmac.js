@@ -10,6 +10,7 @@ exports.generateHmac = (data, secret) => {
   return crypto.createHmac("sha256", secret).update(data).digest("hex");
 };
 
+<<<<<<< HEAD
 exports.verifyHmac = (data, signature, secret) => {
   const serverHmac = crypto.createHmac("sha256", secret).update(data).digest("hex");
   
@@ -21,4 +22,16 @@ exports.verifyHmac = (data, signature, secret) => {
   }
 
   return crypto.timingSafeEqual(serverHmacBuffer, clientHmacBuffer);
+=======
+/**
+ * Verify HMAC-SHA256 signature
+ * @param {string} data 
+ * @param {string} signature 
+ * @param {string} secret 
+ * @returns {boolean}
+ */
+exports.verifyHmac = (data, signature, secret) => {
+  const hash = crypto.createHmac("sha256", secret).update(data).digest("hex");
+  return hash === signature;
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
 };

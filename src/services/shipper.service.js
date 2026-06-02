@@ -53,9 +53,12 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       note: "Đơn hàng đã được giao thành công.",
     });
 
+<<<<<<< HEAD
     let shipperEarn = 0;
     let storeEarn = 0;
 
+=======
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
     // 3. Thực hiện chia tiền (wallet/split logic)
     const order = await trx("orders").where({ id: orderId }).first();
     if (order) {
@@ -70,7 +73,11 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       const shipperFactor = (100 - shipperCommissionPct) / 100;
       const shippingFeeVal = Number(order.shipping_fee) || 15000;
       const tipAmountVal = Number(order.tip_amount) || 0;
+<<<<<<< HEAD
       shipperEarn = Math.round(shippingFeeVal * shipperFactor) + tipAmountVal;
+=======
+      const shipperEarn = Math.round(shippingFeeVal * shipperFactor) + tipAmountVal;
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
 
       // Cập nhật ví tài xế
       const existingWallet = await trx("shipper_wallets").where({ shipper_id: shipper.id }).first();
@@ -117,7 +124,11 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
         shopCommissionPct = Number(shopFeeSettings.fee_value);
       }
       const shopFactor = (100 - shopCommissionPct) / 100;
+<<<<<<< HEAD
       storeEarn = Math.round(netFoodPrice * shopFactor);
+=======
+      const storeEarn = Math.round(netFoodPrice * shopFactor);
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
 
       // Cập nhật số dư quán
       await trx("stores")
@@ -134,6 +145,10 @@ exports.completeOrder = async (userId, orderId, deliveryPhoto) => {
       });
     }
 
+<<<<<<< HEAD
     return { message: "Đã hoàn thành đơn!", shipperEarn, storeEarn };
+=======
+    return "Đã hoàn thành đơn!";
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
   });
 };

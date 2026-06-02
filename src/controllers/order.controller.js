@@ -113,10 +113,47 @@ exports.reorder = catchAsync(async (req, res, next) => {
 
   const newOrder = await orderService.reorder(userId, orderId);
 
+<<<<<<< HEAD
   res.status(200).json({
     status: "success",
     success: true,
     data: newOrder,
+=======
+  // Ghi vết thông báo đặt đơn thành công
+  await notiService.createNotification({
+    userId: userId,
+    role: "user",
+    title: "Đặt lại đơn hàng thành công! 🛒",
+    content: `Đơn hàng mới #${newOrder.orderId} (sao chép từ đơn #${orderId}) đã được gửi tới cửa hàng.`,
+    type: "order",
+  });
+
+  // Bắn socket cho Store
+  const orderPayloadForStore = {
+    order_id: newOrder.orderId,
+    address: newOrder.address,
+    total_price: newOrder.totalPrice,
+    status: "pending",
+    note: newOrder.note || null,
+    created_at: new Date(),
+  };
+  global._io.to(`store_room_${newOrder.storeId}`).emit("new_order", {
+    success: true,
+    message: "🔊 Ting Ting! Có đơn đặt lại mới tinh nè sếp ơi!",
+    data: orderPayloadForStore,
+  });
+
+  res.status(201).json({
+    status: "success",
+    message: "Đặt lại đơn hàng thành công!",
+    success: true,
+    result: {
+      order_id: newOrder.orderId,
+      address: newOrder.address,
+      total_price: newOrder.totalPrice,
+      order_status: "pending",
+    },
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
   });
 });
 
@@ -134,6 +171,7 @@ exports.submitOrderReview = catchAsync(async (req, res, next) => {
     throw error;
   }
 
+<<<<<<< HEAD
   console.log(`📝 Review request - orderId: ${orderId}, userId: ${userId}`);
 
   // Check if order exists and belongs to user
@@ -152,6 +190,15 @@ exports.submitOrderReview = catchAsync(async (req, res, next) => {
     error.statusCode = 403;
     throw error;
   }
+=======
+  // Check if order exists and belongs to user
+  const order = await orderRepo.findOrderById(orderId);
+  if (!order || order.user_id !== userId) {
+    const error = new Error("Đơn hàng không hợp lệ!");
+    error.statusCode = 404;
+    throw error;
+  }
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
 
   // Check if already reviewed
   const existingReview = await orderReviewRepo.getReviewByOrderId(orderId);

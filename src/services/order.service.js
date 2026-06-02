@@ -97,13 +97,18 @@ exports.reorder = async (userId, orderId) => {
     throw error;
   }
 
+<<<<<<< HEAD
   const oldItems = await orderRepo.findOrderItemsDetails(orderId);
+=======
+  const oldItems = await orderRepo.findOrderItems(orderId);
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
   if (!oldItems || oldItems.length === 0) {
     const error = new Error("Đơn hàng cũ không chứa sản phẩm nào!");
     error.statusCode = 400;
     throw error;
   }
 
+<<<<<<< HEAD
   // Trả về danh sách products để người dùng vào màn hình Checkout
   return {
     storeId: oldOrder.store_id,
@@ -117,6 +122,31 @@ exports.reorder = async (userId, orderId) => {
       store_id: oldOrder.store_id,
     })),
     address: oldOrder.address,
+=======
+  // Tạo giao dịch đơn hàng mới sao chép từ đơn cũ
+  const newOrderId = await orderRepo.createOrderTransaction(
+    userId,
+    oldOrder.store_id,
+    oldItems.map((item) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+    })),
+    oldOrder.address,
+    oldOrder.total_price,
+    oldOrder.shipping_fee,
+    oldOrder.service_fee || 0,
+    oldOrder.note,
+    oldOrder.distance,
+    oldOrder.voucher_id || null, // Áp dụng lại voucher cũ nếu có
+  );
+
+  return {
+    orderId: newOrderId,
+    storeId: oldOrder.store_id,
+    address: oldOrder.address,
+    totalPrice: oldOrder.total_price,
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
     note: oldOrder.note,
   };
 };

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const crypto = require("crypto");
 const moment = require("moment");
 const querystring = require("qs");
@@ -59,3 +60,18 @@ const signedManual = hmac2.update(Buffer.from(signDataManual, "utf-8")).digest("
 
 console.log("Signed QS:", signedQs);
 console.log("Signed Manual:", signedManual);
+=======
+require('dotenv').config();
+const vnpay = require('./src/utils/vnpay');
+const req = {
+  headers: {
+    "x-forwarded-for": "127.0.0.1"
+  }
+};
+const params = {
+  orderId: "12345",
+  amount: 40000
+};
+const url = vnpay.buildPaymentUrl(req, params);
+console.log("URL:", url);
+>>>>>>> fa6c83e4b3846892ac5bb7be251187d5fdf26eca
